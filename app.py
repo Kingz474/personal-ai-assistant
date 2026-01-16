@@ -1,8 +1,8 @@
 import streamlit as st
 import json, os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 
-# ---------------- FILES ----------------
+# ================= FILES =================
 TASK_FILE = "tasks.json"
 REC_FILE = "recommendations.json"
 
@@ -19,7 +19,7 @@ def save(file, data):
 tasks = load(TASK_FILE, {})
 recs = load(REC_FILE, {})
 
-# ---------------- LOGIN ----------------
+# ================= LOGIN =================
 st.title("📚 Personal AI Study Assistant")
 
 user_id = st.text_input("Enter your User ID")
@@ -31,46 +31,49 @@ if user_id not in tasks:
     tasks[user_id] = []
     save(TASK_FILE, tasks)
 
-# ---------------- SECTION SELECTOR ----------------
+now = datetime.now()
+
+# ================= SECTION SELECTOR =================
 section = st.sidebar.radio(
     "Choose Section",
     [
         "➕ Add Task",
         "📋 Pending Tasks",
         "🔥 Priority Tasks",
-        "🧠 Study Plan",
+        "🧠 Daily Study Plan",
         "💡 Recommendations"
     ]
 )
 
-now = datetime.now()
-
-# =================================================
+# ====================================================
 # ➕ ADD TASK
-# =================================================
+# ====================================================
 if section == "➕ Add Task":
     st.header("➕ Add New Task")
 
     name = st.text_input("Task name")
     subject = st.text_input("Subject (type your own)")
     deadline = st.date_input("Deadline")
-    workload = st.slider("Workload (how heavy?)", 1, 10, 5)
+    workload = st.slider("Workload (how heavy is it?)", 1, 10, 5)
 
     if st.button("Add Task"):
-        tasks[user_id].append({
-            "name": name,
-            "subject": subject,
-            "deadline": deadline.isoformat(),
-            "workload": workload,
-            "done": False,
-            "done_time": None
-        })
-        save(TASK_FILE, tasks)
-        st.success("Task added successfully!")
+        if name.strip() == "":
+            st.error("Task name required")
+        else:
+            tasks[user_id].append({
+                "name": name,
+                "subject": subject,
+                "deadline": deadline.isoformat(),
+                "workload": workload,
+                "done": False,
+                "done_time": None
+            })
+            save(TASK_FILE, tasks)
+            st.success("✅ Task added")
 
-# =================================================
+# ====================================================
 # 📋 PENDING TASKS
-# =================================================
+# ====================================================
 elif section == "📋 Pending Tasks":
     st.header("📋 Pending Tasks")
 
@@ -86,9 +89,8 @@ elif section == "📋 Pending Tasks":
 
         st.markdown(
             f"<div style='{style}'>"
-            f"📌 {t['name']} | {t['subject']} | "
-            f"Workload: {t['workload']} | "
-            f"Deadline: {t['deadline']}"
+            f"📌 <b>{t['name']}</b> | {t['subject']} | "
+            f"Workload: {t['workload']} | Deadline: {t['deadline']}"
             f"</div>",
             unsafe_allow_html=True
         )
@@ -99,15 +101,15 @@ elif section == "📋 Pending Tasks":
                 t["done_time"] = now.isoformat()
                 save(TASK_FILE, tasks)
 
-        # remove after 1 day
+        # auto delete after 1 day
         if t["done"] and t["done_time"]:
             if now > datetime.fromisoformat(t["done_time"]) + timedelta(days=1):
                 tasks[user_id].remove(t)
                 save(TASK_FILE, tasks)
 
-# =================================================
+# ====================================================
 # 🔥 PRIORITY TASKS
-# =================================================
+# ====================================================
 elif section == "🔥 Priority Tasks":
     st.header("🔥 Priority Tasks")
 
@@ -124,36 +126,73 @@ elif section == "🔥 Priority Tasks":
         style = "opacity:0.4;" if t["done"] else ""
         st.markdown(
             f"<div style='{style}'>"
-            f"🔥 {t['name']} | {t['subject']} | "
-            f"Workload: {t['workload']} | "
-            f"Deadline: {t['deadline']}"
+            f"🔥 <b>{t['name']}</b> | {t['subject']} | "
+            f"Workload: {t['workload']} | Deadline: {t['deadline']}"
             f"</div>",
             unsafe_allow_html=True
         )
 
-# =================================================
-# 🧠 STUDY PLAN
-# =================================================
-elif section == "🧠 Study Plan":
-    st.header("🧠 Daily Study Plan")
+# ====================================================
+# 🧠 DAILY STUDY PLAN (TIME BASED)
+# ====================================================
+elif section == "🧠 Daily Study Plan":
+    st.header("🧠 Daily Study Plan (Hours & Minutes)")
 
-    schedule = st.text_area(
-        "Enter your full-day schedule",
-        placeholder="6–7 Wake up\n7–9 College\n9–11 Study Math\n..."
-    )
+    st.subheader("🕒 Day Time Range")
+    day_start = st.time_input("Day starts at", time(6, 0))
+    day_end = st.time_input("Day ends at", time(22, 0))
 
-    if st.button("Get Suggestions"):
-        st.success("AI Suggestions")
-        st.write("""
-        • Do highest workload tasks first  
-        • Study difficult subjects in the morning  
-        • Use 50 min study + 10 min break  
-        • Revise completed tasks lightly at night  
-        """)
+    if "study_blocks" not in st.session_state:
+        st.session_state.study_blocks = []
 
-# =================================================
+    st.subheader("📘 Add Study Block")
+
+    task = st.text_input("Activity / Subject Name")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        hrs = st.number_input("Hours", 0, 12, 1)
+    with col2:
+        mins = st.number_input("Minutes", 0, 59, 0)
+
+    if st.button("➕ Add Block"):
+        if task.strip() == "":
+            st.error("Task name required")
+        else:
+            st.session_state.study_blocks.append({
+                "task": task,
+                "minutes": hrs * 60 + mins
+            })
+            st.success("Added to plan")
+
+    st.subheader("📅 Your Plan")
+
+    total_minutes = 0
+    for i, b in enumerate(st.session_state.study_blocks):
+        total_minutes += b["minutes"]
+        st.write(f"{i+1}. {b['task']} — {b['minutes']} minutes")
+
+    available_minutes = (
+        datetime.combine(datetime.today(), day_end)
+        - datetime.combine(datetime.today(), day_start)
+    ).seconds // 60
+
+    st.divider()
+    st.subheader("🤖 AI Suggestions")
+
+    if total_minutes > available_minutes:
+        st.error("❌ Your plan exceeds available time")
+    else:
+        st.success("✅ Your plan fits the day")
+
+    if total_minutes > 6 * 60:
+        st.warning("⏸️ Add 10-minute breaks after every 50 minutes")
+
+    st.info("🧠 High workload or hard subjects should be scheduled earlier")
+
+# ====================================================
 # 💡 RECOMMENDATIONS
-# =================================================
+# ====================================================
 elif section == "💡 Recommendations":
     st.header("💡 Recommendations")
 
@@ -166,15 +205,15 @@ elif section == "💡 Recommendations":
             "time": now.isoformat()
         })
         save(REC_FILE, recs)
-        st.success("Sent to owner!")
+        st.success("📨 Sent to owner")
 
-    # OWNER VIEW
     if user_id == "proto":
         st.subheader("🔐 Owner Inbox")
-        pwd = st.text_input("Owner password", type="password")
+        pwd = st.text_input("Owner Password", type="password")
 
         if pwd == "1357924680proto":
             for r in recs.get("proto", []):
                 st.info(f"From: {r['from']}\n\n{r['msg']}")
         elif pwd:
             st.error("Wrong password")
+
