@@ -1,27 +1,25 @@
 import streamlit as st
-import json
-import os
+import json, os
 from datetime import datetime, timedelta
 
-# ------------------ FILES ------------------
+# ---------------- FILES ----------------
 TASK_FILE = "tasks.json"
 REC_FILE = "recommendations.json"
 
-# ------------------ HELPERS ------------------
-def load_json(file, default):
+def load(file, default):
     if os.path.exists(file):
         with open(file, "r") as f:
             return json.load(f)
     return default
 
-def save_json(file, data):
+def save(file, data):
     with open(file, "w") as f:
         json.dump(data, f, indent=4)
 
-tasks_data = load_json(TASK_FILE, {})
-rec_data = load_json(REC_FILE, {})
+tasks = load(TASK_FILE, {})
+recs = load(REC_FILE, {})
 
-# ------------------ LOGIN ------------------
+# ---------------- LOGIN ----------------
 st.title("📚 Personal AI Study Assistant")
 
 user_id = st.text_input("Enter your User ID")
@@ -29,108 +27,154 @@ user_id = st.text_input("Enter your User ID")
 if not user_id:
     st.stop()
 
-if user_id not in tasks_data:
-    tasks_data[user_id] = []
-    save_json(TASK_FILE, tasks_data)
+if user_id not in tasks:
+    tasks[user_id] = []
+    save(TASK_FILE, tasks)
 
-# ------------------ ADD TASK ------------------
-st.header("➕ Add Task")
-
-task_name = st.text_input("Task Name")
-subject = st.text_input("Subject (type your own)")
-deadline = st.date_input("Deadline")
-workload = st.slider("How heavy is the work?", 1, 10, 5)
-
-if st.button("Add Task"):
-    tasks_data[user_id].append({
-        "task": task_name,
-        "subject": subject,
-        "deadline": deadline.isoformat(),
-        "workload": workload,
-        "completed": False,
-        "completed_time": None
-    })
-    save_json(TASK_FILE, tasks_data)
-    st.success("Task added!")
-
-# ------------------ TASK VIEW ------------------
-st.header("📋 Your Tasks")
+# ---------------- SECTION SELECTOR ----------------
+section = st.sidebar.radio(
+    "Choose Section",
+    [
+        "➕ Add Task",
+        "📋 Pending Tasks",
+        "🔥 Priority Tasks",
+        "🧠 Study Plan",
+        "💡 Recommendations"
+    ]
+)
 
 now = datetime.now()
 
-for t in tasks_data[user_id][:]:
-    deadline_dt = datetime.fromisoformat(t["deadline"])
-    overdue = now > deadline_dt and not t["completed"]
+# =================================================
+# ➕ ADD TASK
+# =================================================
+if section == "➕ Add Task":
+    st.header("➕ Add New Task")
 
-    style = ""
-    if overdue:
-        style = "color:red;"
-    if t["completed"]:
-        style = "opacity:0.4;"
+    name = st.text_input("Task name")
+    subject = st.text_input("Subject (type your own)")
+    deadline = st.date_input("Deadline")
+    workload = st.slider("Workload (how heavy?)", 1, 10, 5)
 
-    col1, col2 = st.columns([4, 1])
+    if st.button("Add Task"):
+        tasks[user_id].append({
+            "name": name,
+            "subject": subject,
+            "deadline": deadline.isoformat(),
+            "workload": workload,
+            "done": False,
+            "done_time": None
+        })
+        save(TASK_FILE, tasks)
+        st.success("Task added successfully!")
 
-    with col1:
+# =================================================
+# 📋 PENDING TASKS
+# =================================================
+elif section == "📋 Pending Tasks":
+    st.header("📋 Pending Tasks")
+
+    for t in tasks[user_id][:]:
+        deadline_dt = datetime.fromisoformat(t["deadline"])
+        overdue = now > deadline_dt and not t["done"]
+
+        style = ""
+        if overdue:
+            style = "color:red;"
+        if t["done"]:
+            style = "opacity:0.4;"
+
         st.markdown(
             f"<div style='{style}'>"
-            f"📌 {t['task']} | {t['subject']} | "
+            f"📌 {t['name']} | {t['subject']} | "
             f"Workload: {t['workload']} | "
             f"Deadline: {t['deadline']}"
             f"</div>",
             unsafe_allow_html=True
         )
 
-    with col2:
-        if st.checkbox("Done", value=t["completed"], key=t["task"]):
-            if not t["completed"]:
-                t["completed"] = True
-                t["completed_time"] = datetime.now().isoformat()
-                save_json(TASK_FILE, tasks_data)
+        if st.checkbox("Completed", value=t["done"], key=t["name"]):
+            if not t["done"]:
+                t["done"] = True
+                t["done_time"] = now.isoformat()
+                save(TASK_FILE, tasks)
 
-    # auto delete after 1 day
-    if t["completed"] and t["completed_time"]:
-        if datetime.now() > datetime.fromisoformat(t["completed_time"]) + timedelta(days=1):
-            tasks_data[user_id].remove(t)
-            save_json(TASK_FILE, tasks_data)
+        # remove after 1 day
+        if t["done"] and t["done_time"]:
+            if now > datetime.fromisoformat(t["done_time"]) + timedelta(days=1):
+                tasks[user_id].remove(t)
+                save(TASK_FILE, tasks)
 
-# ------------------ STUDY PLAN ------------------
-st.header("🧠 Study Plan")
+# =================================================
+# 🔥 PRIORITY TASKS
+# =================================================
+elif section == "🔥 Priority Tasks":
+    st.header("🔥 Priority Tasks")
 
-schedule = st.text_area(
-    "Enter your full day schedule",
-    placeholder="Example:\n6-7 Wake up\n7-9 College\n9-11 Study Math..."
-)
+    priority = sorted(
+        tasks[user_id],
+        key=lambda x: (
+            x["done"],
+            datetime.fromisoformat(x["deadline"]),
+            -x["workload"]
+        )
+    )
 
-if st.button("Get Study Suggestions"):
-    st.success("📌 AI Suggestions:")
-    st.write("""
-    • Study high workload tasks first  
-    • Use 50 min study + 10 min break  
-    • Keep hardest subject in morning  
-    • Revise completed tasks briefly at night  
-    """)
+    for t in priority:
+        style = "opacity:0.4;" if t["done"] else ""
+        st.markdown(
+            f"<div style='{style}'>"
+            f"🔥 {t['name']} | {t['subject']} | "
+            f"Workload: {t['workload']} | "
+            f"Deadline: {t['deadline']}"
+            f"</div>",
+            unsafe_allow_html=True
+        )
 
-# ------------------ RECOMMENDATIONS ------------------
-st.header("💡 Send Recommendation")
+# =================================================
+# 🧠 STUDY PLAN
+# =================================================
+elif section == "🧠 Study Plan":
+    st.header("🧠 Daily Study Plan")
 
-rec_msg = st.text_area("Your recommendation")
+    schedule = st.text_area(
+        "Enter your full-day schedule",
+        placeholder="6–7 Wake up\n7–9 College\n9–11 Study Math\n..."
+    )
 
-if st.button("Send to Owner"):
-    rec_data.setdefault("proto", []).append({
-        "from": user_id,
-        "message": rec_msg,
-        "time": datetime.now().isoformat()
-    })
-    save_json(REC_FILE, rec_data)
-    st.success("Recommendation sent!")
+    if st.button("Get Suggestions"):
+        st.success("AI Suggestions")
+        st.write("""
+        • Do highest workload tasks first  
+        • Study difficult subjects in the morning  
+        • Use 50 min study + 10 min break  
+        • Revise completed tasks lightly at night  
+        """)
 
-# ------------------ OWNER INBOX ------------------
-if user_id == "proto":
-    st.header("🔐 Owner Recommendation Inbox")
-    pwd = st.text_input("Enter Owner Password", type="password")
+# =================================================
+# 💡 RECOMMENDATIONS
+# =================================================
+elif section == "💡 Recommendations":
+    st.header("💡 Recommendations")
 
-    if pwd == "1357924680proto":
-        for r in rec_data.get("proto", []):
-            st.info(f"From: {r['from']}\n\n{r['message']}")
-    else:
-        st.warning("Wrong password")
+    msg = st.text_area("Write your recommendation")
+
+    if st.button("Send to Owner"):
+        recs.setdefault("proto", []).append({
+            "from": user_id,
+            "msg": msg,
+            "time": now.isoformat()
+        })
+        save(REC_FILE, recs)
+        st.success("Sent to owner!")
+
+    # OWNER VIEW
+    if user_id == "proto":
+        st.subheader("🔐 Owner Inbox")
+        pwd = st.text_input("Owner password", type="password")
+
+        if pwd == "1357924680proto":
+            for r in recs.get("proto", []):
+                st.info(f"From: {r['from']}\n\n{r['msg']}")
+        elif pwd:
+            st.error("Wrong password")
