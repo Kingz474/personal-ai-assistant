@@ -52,7 +52,7 @@ if section == "➕ Add Task":
     st.header("➕ Add New Task")
 
     name = st.text_input("Task name")
-    subject = st.text_input("Subject (type your own)")
+    subject = st.text_input("Subject")
     deadline = st.date_input("Deadline")
 
     difficulty = st.slider("Difficulty", 1, 10, 5)
@@ -60,9 +60,7 @@ if section == "➕ Add Task":
     workload = st.slider("Workload", 1, 10, 5)
 
     if st.button("Add Task"):
-        if name.strip() == "":
-            st.error("Task name required")
-        else:
+        if name.strip():
             tasks[user_id].append({
                 "name": name,
                 "subject": subject,
@@ -74,7 +72,7 @@ if section == "➕ Add Task":
                 "done_time": None
             })
             save(TASK_FILE, tasks)
-            st.success("✅ Task added")
+            st.success("Task added")
 
 # ====================================================
 # 📋 PENDING TASKS
@@ -86,30 +84,24 @@ elif section == "📋 Pending Tasks":
         deadline_dt = datetime.fromisoformat(t["deadline"])
         overdue = now > deadline_dt and not t["done"]
 
-        style = ""
-        if overdue:
-            style = "color:red;"
+        style = "color:red;" if overdue else ""
         if t["done"]:
             style = "opacity:0.4;"
 
         st.markdown(
             f"<div style='{style}'>"
-            f"📌 <b>{t['name']}</b> | {t['subject']}<br>"
-            f"🎯 Importance: {t['importance']} | "
-            f"🧠 Difficulty: {t['difficulty']} | "
-            f"📦 Workload: {t['workload']}<br>"
-            f"⏰ Deadline: {t['deadline']}"
+            f"<b>{t['name']}</b> | {t['subject']}<br>"
+            f"Imp: {t['importance']} | Diff: {t['difficulty']} | Load: {t['workload']}<br>"
+            f"Deadline: {t['deadline']}"
             f"</div>",
             unsafe_allow_html=True
         )
 
         if st.checkbox("Completed", value=t["done"], key=t["name"]):
-            if not t["done"]:
-                t["done"] = True
-                t["done_time"] = now.isoformat()
-                save(TASK_FILE, tasks)
+            t["done"] = True
+            t["done_time"] = now.isoformat()
+            save(TASK_FILE, tasks)
 
-        # auto delete after 1 day
         if t["done"] and t["done_time"]:
             if now > datetime.fromisoformat(t["done_time"]) + timedelta(days=1):
                 tasks[user_id].remove(t)
@@ -124,75 +116,64 @@ elif section == "🔥 Priority Tasks":
     def priority_score(t):
         days_left = (datetime.fromisoformat(t["deadline"]) - now).days
         urgency = max(0, 10 - days_left)
-        return (
-            t["importance"] * 2 +
-            t["difficulty"] +
-            t["workload"] +
-            urgency
-        )
+        return t["importance"]*2 + t["difficulty"] + t["workload"] + urgency
 
-    priority = sorted(
-        tasks[user_id],
-        key=lambda x: (x["done"], -priority_score(x))
-    )
+    sorted_tasks = sorted(tasks[user_id], key=lambda x: (x["done"], -priority_score(x)))
 
-    for t in priority:
+    for t in sorted_tasks:
         style = "opacity:0.4;" if t["done"] else ""
         st.markdown(
             f"<div style='{style}'>"
-            f"🔥 <b>{t['name']}</b> | {t['subject']}<br>"
-            f"Score: {priority_score(t)} | "
-            f"🎯 {t['importance']} | "
-            f"🧠 {t['difficulty']} | "
-            f"📦 {t['workload']} | "
-            f"⏰ {t['deadline']}"
+            f"<b>{t['name']}</b> | Score: {priority_score(t)}"
             f"</div>",
             unsafe_allow_html=True
         )
 
 # ====================================================
-# 🧠 DAILY STUDY PLAN
+# 🧠 DAILY STUDY PLAN (OBSTACLE BASED)
 # ====================================================
 elif section == "🧠 Daily Study Plan":
-    st.header("🧠 Daily Study Plan (Hours & Minutes)")
+    st.header("🧠 Daily Study Plan (Obstacle Based)")
 
-    day_start = st.time_input("Day starts at", time(6, 0))
-    day_end = st.time_input("Day ends at", time(22, 0))
+    if "obstacles" not in st.session_state:
+        st.session_state.obstacles = []
 
-    if "study_blocks" not in st.session_state:
-        st.session_state.study_blocks = []
+    st.subheader("➕ Add Fixed Activity / Obstacle")
 
-    task = st.text_input("Activity / Subject")
-
+    obs_name = st.text_input("Obstacle name (College, Food, Sleep, etc)")
     col1, col2 = st.columns(2)
     with col1:
-        hrs = st.number_input("Hours", 0, 12, 1)
+        obs_start = st.time_input("Start time", time(9, 0))
     with col2:
-        mins = st.number_input("Minutes", 0, 59, 0)
+        obs_end = st.time_input("End time", time(17, 0))
 
-    if st.button("➕ Add Block"):
-        st.session_state.study_blocks.append({
-            "task": task,
-            "minutes": hrs * 60 + mins
+    if st.button("Add Obstacle"):
+        st.session_state.obstacles.append({
+            "name": obs_name,
+            "start": obs_start,
+            "end": obs_end
         })
 
-    total = 0
-    for b in st.session_state.study_blocks:
-        total += b["minutes"]
-        st.write(f"• {b['task']} — {b['minutes']} minutes")
-
-    available = (
-        datetime.combine(datetime.today(), day_end)
-        - datetime.combine(datetime.today(), day_start)
-    ).seconds // 60
-
     st.divider()
-    if total > available:
-        st.error("❌ Plan exceeds available time")
-    else:
-        st.success("✅ Plan fits the day")
+    st.subheader("📅 Full Day Timetable")
 
-    st.info("🧠 Do high priority & difficult tasks early")
+    if st.session_state.obstacles:
+        sorted_obs = sorted(st.session_state.obstacles, key=lambda x: x["start"])
+
+        prev_end = time(0, 0)
+
+        for o in sorted_obs:
+            if prev_end < o["start"]:
+                st.success(f"🟢 Free: {prev_end} - {o['start']}")
+            st.warning(f"🔒 {o['name']}: {o['start']} - {o['end']}")
+            prev_end = o["end"]
+
+        if prev_end < time(23, 59):
+            st.success(f"🟢 Free: {prev_end} - 23:59")
+
+    if st.button("🔄 Reset Timetable"):
+        st.session_state.obstacles = []
+        st.success("Timetable reset")
 
 # ====================================================
 # 💡 RECOMMENDATIONS
@@ -209,7 +190,7 @@ elif section == "💡 Recommendations":
             "time": now.isoformat()
         })
         save(REC_FILE, recs)
-        st.success("📨 Sent")
+        st.success("Sent")
 
     if user_id == "proto":
         pwd = st.text_input("Owner Password", type="password")
