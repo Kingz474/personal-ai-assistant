@@ -5,7 +5,6 @@ from datetime import datetime, time, timedelta
 # ================= FILES =================
 TASK_FILE = "tasks.json"
 REC_FILE = "recommendations.json"
-OBS_FILE = "obstacles.json"
 
 def load(file):
     if os.path.exists(file):
@@ -19,7 +18,6 @@ def save(file, data):
 
 tasks = load(TASK_FILE)
 recs = load(REC_FILE)
-obstacles = load(OBS_FILE)
 
 # ================= USER =================
 st.title("📚 Personal AI Study Assistant")
@@ -53,10 +51,10 @@ if section == "➕ Add Task":
     subject = st.text_input("Subject")
     deadline = st.date_input("Deadline")
 
-    col1, col2, col3 = st.columns(3)
-    difficulty = col1.slider("Difficulty", 1, 5)
-    importance = col2.slider("Importance", 1, 5)
-    workload = col3.slider("Workload", 1, 5)
+    c1, c2, c3 = st.columns(3)
+    difficulty = c1.slider("Difficulty", 1, 5)
+    importance = c2.slider("Importance", 1, 5)
+    workload = c3.slider("Workload", 1, 5)
 
     if st.button("Add Task"):
         tasks[user].append({
@@ -73,7 +71,7 @@ if section == "➕ Add Task":
         st.success("Task added")
 
 # =====================================================
-# ⏳ PENDING TASKS (RESTORED)
+# ⏳ PENDING TASKS
 # =====================================================
 elif section == "⏳ Pending Tasks":
     st.header("⏳ Pending Tasks")
@@ -84,8 +82,11 @@ elif section == "⏳ Pending Tasks":
         if t["done"]:
             done_time = datetime.fromisoformat(t["done_time"])
             if now - done_time > timedelta(days=1):
-                continue  # auto-remove after 1 day
-            st.markdown(f"<div style='opacity:0.4'>✔ {t['title']} ({t['subject']})</div>", unsafe_allow_html=True)
+                continue
+            st.markdown(
+                f"<div style='opacity:0.4'>✔ {t['title']} ({t['subject']})</div>",
+                unsafe_allow_html=True
+            )
         else:
             deadline = datetime.fromisoformat(t["deadline"]).date()
             if now.date() > deadline:
@@ -93,7 +94,7 @@ elif section == "⏳ Pending Tasks":
             else:
                 st.info(f"{t['title']} ({t['subject']})")
 
-        if st.checkbox("Mark Completed", key=f"pending{i}", value=t["done"]):
+        if st.checkbox("Mark Completed", key=f"pend{i}", value=t["done"]):
             t["done"] = True
             t["done_time"] = datetime.now().isoformat()
 
@@ -114,7 +115,10 @@ elif section == "⭐ Priority Tasks":
             if expired and not t["done"]:
                 st.error(f"{t['title']} ({t['subject']})")
             elif t["done"]:
-                st.markdown(f"<div style='opacity:0.4'>✔ {t['title']}</div>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<div style='opacity:0.4'>✔ {t['title']}</div>",
+                    unsafe_allow_html=True
+                )
             else:
                 st.info(f"{t['title']} ({t['subject']}) | Priority: {score}")
 
@@ -126,7 +130,7 @@ elif section == "⭐ Priority Tasks":
     save(TASK_FILE, tasks)
 
 # =====================================================
-# 🧠 DAILY STUDY PLAN (UNCHANGED)
+# 🧠 DAILY STUDY PLAN (FIXED)
 # =====================================================
 elif section == "🧠 Daily Study Plan":
     st.header("🧠 Weekly Obstacle Timetable (24-Hour)")
@@ -141,7 +145,7 @@ elif section == "🧠 Daily Study Plan":
         }
 
     st.subheader("➕ Add Obstacle")
-    obs_name = st.text_input("Obstacle Name")
+    obs_name = st.text_input("Obstacle Name (College, Lunch, Travel)")
     obs_day = st.selectbox("Day", DAYS)
 
     c1, c2 = st.columns(2)
@@ -154,16 +158,26 @@ elif section == "🧠 Daily Study Plan":
         else:
             for slot in TIME_SLOTS:
                 s, e = slot.split("-")
-                if time.fromisoformat(s) >= start and time.fromisoformat(e) <= end:
+                s_time = time.fromisoformat(s)
+                e_time = time.fromisoformat(e)
+
+                if s_time >= start and e_time <= end:
                     st.session_state.table[slot][obs_day] = obs_name
+
             st.success("Obstacle added")
+
+    st.subheader("📅 Weekly Timetable")
 
     for slot in TIME_SLOTS:
         cols = st.columns(len(DAYS) + 1)
         cols[0].markdown(f"**{slot}**")
+
         for i, day in enumerate(DAYS):
             val = st.session_state.table[slot][day]
-            cols[i+1].warning(val) if val else cols[i+1].success("FREE")
+            if val:
+                cols[i+1].warning(val)
+            else:
+                cols[i+1].success("FREE")
 
     if st.button("🔄 Reset Timetable"):
         for slot in st.session_state.table:
@@ -172,7 +186,7 @@ elif section == "🧠 Daily Study Plan":
         st.success("Timetable reset")
 
 # =====================================================
-# 📩 RECOMMENDATIONS (UNCHANGED)
+# 📩 RECOMMENDATIONS
 # =====================================================
 elif section == "📩 Recommendations":
     st.header("📩 Recommendations")
@@ -196,4 +210,5 @@ elif section == "📩 Recommendations":
             })
             save(REC_FILE, recs)
             st.success("Sent")
+
 
