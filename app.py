@@ -4,9 +4,37 @@ from datetime import datetime, time, timedelta
 
 # ================= PAGE CONFIG =================
 st.set_page_config(
-    page_title="Personal AI Study Assistant",
-    page_icon="📚"
+    page_title="Personal Study Assistant",
+    page_icon="📚",
+    layout="wide"
 )
+
+# ================= SOFT UI CSS =================
+st.markdown("""
+<style>
+.block-container {
+    padding-top: 2rem;
+}
+.card {
+    padding: 1.2rem;
+    border-radius: 12px;
+    background-color: #ffffff10;
+    margin-bottom: 1rem;
+}
+.chat-user {
+    background: #1f2937;
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 6px;
+}
+.chat-ai {
+    background: #0f766e;
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 6px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ================= FILES =================
 TASK_FILE = "tasks.json"
@@ -29,34 +57,31 @@ tasks = load(TASK_FILE)
 recs = load(REC_FILE)
 knowledge_base = load(KB_FILE)
 
-# ================= TITLE =================
-st.title("📚 Personal AI Study Assistant")
-st.caption("Plan smarter • Study better • Stay consistent")
+# ================= HEADER =================
+st.markdown("## 📚 Personal Study Assistant")
+st.caption("Plan • Organize • Learn smarter")
 
-# ===== VERSION =====
-st.markdown(
-    """
-    <div style="position:fixed;top:15px;right:25px;
-    font-size:13px;color:gray;opacity:0.75;z-index:9999;">
-        v1.3 <b>beta</b>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("""
+<div style="position:fixed;top:18px;right:30px;
+font-size:12px;color:#9ca3af;">
+v1.3
+</div>
+""", unsafe_allow_html=True)
 
 st.divider()
 
 # ================= USER =================
-user = st.text_input("👤 Enter your User ID")
+user = st.text_input("User ID", placeholder="Enter your name or ID")
 if not user:
     st.stop()
 
 tasks.setdefault(user, [])
 save(TASK_FILE, tasks)
 
-# ================= MENU =================
+# ================= SIDEBAR =================
+st.sidebar.markdown("### 📌 Menu")
 section = st.sidebar.radio(
-    "📌 Sections",
+    "",
     [
         "➕ Add Task",
         "⏳ Pending Tasks",
@@ -71,9 +96,9 @@ section = st.sidebar.radio(
 # ➕ ADD TASK
 # =====================================================
 if section == "➕ Add Task":
-    st.header("➕ Add Task")
+    st.markdown("### ➕ Add New Task")
 
-    with st.form("add_task", clear_on_submit=True):
+    with st.form("task_form", clear_on_submit=True):
         title = st.text_input("Task Name")
         subject = st.text_input("Subject")
         deadline = st.date_input("Deadline")
@@ -97,38 +122,33 @@ if section == "➕ Add Task":
             "done_time": None
         })
         save(TASK_FILE, tasks)
-        st.success("✅ Task added")
+        st.success("Task added successfully")
 
 # =====================================================
 # ⏳ PENDING TASKS
 # =====================================================
 elif section == "⏳ Pending Tasks":
-    st.header("⏳ Pending Tasks")
+    st.markdown("### ⏳ Pending Tasks")
+
     now = datetime.now()
+    for i, t in enumerate(tasks[user]):
+        deadline = datetime.fromisoformat(t["deadline"]).date()
+        expired = now.date() > deadline
 
-    if not tasks[user]:
-        st.info("No tasks added yet")
-    else:
-        for i, t in enumerate(tasks[user]):
-            deadline = datetime.fromisoformat(t["deadline"]).date()
-            expired = now.date() > deadline
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-            col1, col2 = st.columns([6,1])
-            with col1:
-                if t["done"]:
-                    st.markdown(
-                        f"<div style='opacity:0.4'>✔ {t['title']}</div>",
-                        unsafe_allow_html=True
-                    )
-                elif expired:
-                    st.error(f"❌ {t['title']} — Deadline missed")
-                else:
-                    st.info(f"{t['title']} ({t['subject']})")
+        if t["done"]:
+            st.markdown(f"✔ **{t['title']}** *(completed)*")
+        elif expired:
+            st.error(f"{t['title']} — Deadline missed")
+        else:
+            st.info(f"{t['title']} ({t['subject']})")
 
-            with col2:
-                if st.checkbox("✔", key=f"pend{i}", value=t["done"]):
-                    t["done"] = True
-                    t["done_time"] = datetime.now().isoformat()
+        if st.checkbox("Mark as done", key=f"p{i}", value=t["done"]):
+            t["done"] = True
+            t["done_time"] = datetime.now().isoformat()
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     save(TASK_FILE, tasks)
 
@@ -136,28 +156,19 @@ elif section == "⏳ Pending Tasks":
 # ⭐ PRIORITY TASKS
 # =====================================================
 elif section == "⭐ Priority Tasks":
-    st.header("⭐ Priority Tasks")
+    st.markdown("### ⭐ Priority Overview")
 
     for i, t in enumerate(tasks[user]):
         score = t["difficulty"] + t["importance"] + t["workload"]
-        expired = datetime.now().date() > datetime.fromisoformat(t["deadline"]).date()
 
-        col1, col2 = st.columns([5,1])
-        with col1:
-            if expired and not t["done"]:
-                st.error(f"{t['title']} ({t['subject']})")
-            elif t["done"]:
-                st.markdown(
-                    f"<div style='opacity:0.4'>✔ {t['title']}</div>",
-                    unsafe_allow_html=True
-                )
-            else:
-                st.info(f"{t['title']} | Priority: {score}")
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown(f"**{t['title']}** — Priority: `{score}`")
 
-        with col2:
-            if st.checkbox("✔", key=f"prio{i}", value=t["done"]):
-                t["done"] = True
-                t["done_time"] = datetime.now().isoformat()
+        if st.checkbox("Completed", key=f"s{i}", value=t["done"]):
+            t["done"] = True
+            t["done_time"] = datetime.now().isoformat()
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     save(TASK_FILE, tasks)
 
@@ -165,7 +176,7 @@ elif section == "⭐ Priority Tasks":
 # 🧠 DAILY STUDY PLAN
 # =====================================================
 elif section == "🧠 Daily Study Plan":
-    st.header("🧠 Weekly Obstacle Timetable")
+    st.markdown("### 🧠 Weekly Study Planner")
 
     DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
     TIME_SLOTS = [f"{h:02d}:00-{h+1:02d}:00" for h in range(24)]
@@ -176,13 +187,13 @@ elif section == "🧠 Daily Study Plan":
         }
 
     with st.expander("➕ Add Obstacle"):
-        obs = st.text_input("Obstacle Name")
+        obs = st.text_input("Obstacle name")
         day = st.selectbox("Day", DAYS)
         c1, c2 = st.columns(2)
         start = c1.time_input("Start", time(9,0))
         end = c2.time_input("End", time(10,0))
 
-        if st.button("Add Obstacle"):
+        if st.button("Add"):
             for slot in TIME_SLOTS:
                 s, e = slot.split("-")
                 if time.fromisoformat(s) >= start and time.fromisoformat(e) <= end:
@@ -193,75 +204,68 @@ elif section == "🧠 Daily Study Plan":
         cols = st.columns(len(DAYS)+1)
         cols[0].markdown(f"**{slot}**")
         for i, d in enumerate(DAYS):
-            val = st.session_state.table[slot][d]
-            cols[i+1].success("FREE" if not val else val)
+            cols[i+1].markdown(
+                "🟢 FREE" if not st.session_state.table[slot][d]
+                else f"🔴 {st.session_state.table[slot][d]}"
+            )
 
 # =====================================================
-# 📚 STUDY HELP (NEW)
+# 📚 STUDY HELP
 # =====================================================
 elif section == "📚 Study Help":
-    st.header("📚 Study Help (Shared Knowledge)")
-    st.caption("Upload once — everyone benefits")
+    st.markdown("### 📚 Study Help")
+    st.caption("Shared knowledge — upload once, reuse forever")
 
     uploaded = st.file_uploader(
-        "Upload study material",
+        "Upload document",
         type=["txt","pdf","docx","pptx"]
     )
 
     if uploaded:
         data = uploaded.read()
-        file_hash = hashlib.md5(data).hexdigest()
+        h = hashlib.md5(data).hexdigest()
 
-        if file_hash in knowledge_base:
-            st.info("📄 File already exists. Using stored copy.")
-        else:
-            text = data.decode("utf-8", errors="ignore")
-            knowledge_base[file_hash] = {
+        if h not in knowledge_base:
+            knowledge_base[h] = {
                 "filename": uploaded.name,
-                "text": text,
-                "uploaded_by": user,
-                "time": datetime.now().isoformat()
+                "text": data.decode("utf-8", errors="ignore")
             }
             save(KB_FILE, knowledge_base)
-            st.success("✅ File stored globally")
+            st.success("Document stored")
 
     st.divider()
 
-    question = st.text_input("💬 Ask a question from study material")
+    q = st.text_input("Ask a question")
+    if q:
+        st.markdown("<div class='chat-user'>You: " + q + "</div>", unsafe_allow_html=True)
 
-    if question:
-        found = []
-        q = question.lower()
-
+        answers = []
         for doc in knowledge_base.values():
             for line in doc["text"].splitlines():
-                if q in line.lower():
-                    found.append(line.strip())
-                    if len(found) >= 5:
+                if q.lower() in line.lower():
+                    answers.append(line.strip())
+                    if len(answers) >= 4:
                         break
 
-        if found:
-            st.success("📖 Answer from knowledge base:")
-            for f in found:
-                st.markdown(f"- {f}")
+        if answers:
+            for a in answers:
+                st.markdown("<div class='chat-ai'>" + a + "</div>", unsafe_allow_html=True)
         else:
-            st.warning("No matching information found")
+            st.markdown("<div class='chat-ai'>No matching info found.</div>", unsafe_allow_html=True)
 
 # =====================================================
 # 📩 RECOMMENDATIONS
 # =====================================================
 elif section == "📩 Recommendations":
-    st.header("📩 Recommendations")
+    st.markdown("### 📩 Recommendations")
 
     if user == "proto":
-        pwd = st.text_input("Owner Password", type="password")
+        pwd = st.text_input("Password", type="password")
         if pwd == "1357924680proto":
             for r in recs.get("proto", []):
-                st.info(f"From: {r['from']}\n\n{r['msg']}")
-        else:
-            st.error("Wrong password")
+                st.info(f"From {r['from']}:\n\n{r['msg']}")
     else:
-        msg = st.text_area("Send recommendation to owner (proto)")
+        msg = st.text_area("Send feedback")
         if st.button("Send"):
             recs.setdefault("proto", []).append({
                 "from": user,
