@@ -54,7 +54,10 @@ if section == "➕ Add Task":
     name = st.text_input("Task name")
     subject = st.text_input("Subject (type your own)")
     deadline = st.date_input("Deadline")
-    workload = st.slider("Workload (how heavy is it?)", 1, 10, 5)
+
+    difficulty = st.slider("Difficulty", 1, 10, 5)
+    importance = st.slider("Importance", 1, 10, 5)
+    workload = st.slider("Workload", 1, 10, 5)
 
     if st.button("Add Task"):
         if name.strip() == "":
@@ -64,6 +67,8 @@ if section == "➕ Add Task":
                 "name": name,
                 "subject": subject,
                 "deadline": deadline.isoformat(),
+                "difficulty": difficulty,
+                "importance": importance,
                 "workload": workload,
                 "done": False,
                 "done_time": None
@@ -89,8 +94,11 @@ elif section == "📋 Pending Tasks":
 
         st.markdown(
             f"<div style='{style}'>"
-            f"📌 <b>{t['name']}</b> | {t['subject']} | "
-            f"Workload: {t['workload']} | Deadline: {t['deadline']}"
+            f"📌 <b>{t['name']}</b> | {t['subject']}<br>"
+            f"🎯 Importance: {t['importance']} | "
+            f"🧠 Difficulty: {t['difficulty']} | "
+            f"📦 Workload: {t['workload']}<br>"
+            f"⏰ Deadline: {t['deadline']}"
             f"</div>",
             unsafe_allow_html=True
         )
@@ -113,41 +121,48 @@ elif section == "📋 Pending Tasks":
 elif section == "🔥 Priority Tasks":
     st.header("🔥 Priority Tasks")
 
+    def priority_score(t):
+        days_left = (datetime.fromisoformat(t["deadline"]) - now).days
+        urgency = max(0, 10 - days_left)
+        return (
+            t["importance"] * 2 +
+            t["difficulty"] +
+            t["workload"] +
+            urgency
+        )
+
     priority = sorted(
         tasks[user_id],
-        key=lambda x: (
-            x["done"],
-            datetime.fromisoformat(x["deadline"]),
-            -x["workload"]
-        )
+        key=lambda x: (x["done"], -priority_score(x))
     )
 
     for t in priority:
         style = "opacity:0.4;" if t["done"] else ""
         st.markdown(
             f"<div style='{style}'>"
-            f"🔥 <b>{t['name']}</b> | {t['subject']} | "
-            f"Workload: {t['workload']} | Deadline: {t['deadline']}"
+            f"🔥 <b>{t['name']}</b> | {t['subject']}<br>"
+            f"Score: {priority_score(t)} | "
+            f"🎯 {t['importance']} | "
+            f"🧠 {t['difficulty']} | "
+            f"📦 {t['workload']} | "
+            f"⏰ {t['deadline']}"
             f"</div>",
             unsafe_allow_html=True
         )
 
 # ====================================================
-# 🧠 DAILY STUDY PLAN (TIME BASED)
+# 🧠 DAILY STUDY PLAN
 # ====================================================
 elif section == "🧠 Daily Study Plan":
     st.header("🧠 Daily Study Plan (Hours & Minutes)")
 
-    st.subheader("🕒 Day Time Range")
     day_start = st.time_input("Day starts at", time(6, 0))
     day_end = st.time_input("Day ends at", time(22, 0))
 
     if "study_blocks" not in st.session_state:
         st.session_state.study_blocks = []
 
-    st.subheader("📘 Add Study Block")
-
-    task = st.text_input("Activity / Subject Name")
+    task = st.text_input("Activity / Subject")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -156,39 +171,28 @@ elif section == "🧠 Daily Study Plan":
         mins = st.number_input("Minutes", 0, 59, 0)
 
     if st.button("➕ Add Block"):
-        if task.strip() == "":
-            st.error("Task name required")
-        else:
-            st.session_state.study_blocks.append({
-                "task": task,
-                "minutes": hrs * 60 + mins
-            })
-            st.success("Added to plan")
+        st.session_state.study_blocks.append({
+            "task": task,
+            "minutes": hrs * 60 + mins
+        })
 
-    st.subheader("📅 Your Plan")
+    total = 0
+    for b in st.session_state.study_blocks:
+        total += b["minutes"]
+        st.write(f"• {b['task']} — {b['minutes']} minutes")
 
-    total_minutes = 0
-    for i, b in enumerate(st.session_state.study_blocks):
-        total_minutes += b["minutes"]
-        st.write(f"{i+1}. {b['task']} — {b['minutes']} minutes")
-
-    available_minutes = (
+    available = (
         datetime.combine(datetime.today(), day_end)
         - datetime.combine(datetime.today(), day_start)
     ).seconds // 60
 
     st.divider()
-    st.subheader("🤖 AI Suggestions")
-
-    if total_minutes > available_minutes:
-        st.error("❌ Your plan exceeds available time")
+    if total > available:
+        st.error("❌ Plan exceeds available time")
     else:
-        st.success("✅ Your plan fits the day")
+        st.success("✅ Plan fits the day")
 
-    if total_minutes > 6 * 60:
-        st.warning("⏸️ Add 10-minute breaks after every 50 minutes")
-
-    st.info("🧠 High workload or hard subjects should be scheduled earlier")
+    st.info("🧠 Do high priority & difficult tasks early")
 
 # ====================================================
 # 💡 RECOMMENDATIONS
@@ -196,7 +200,7 @@ elif section == "🧠 Daily Study Plan":
 elif section == "💡 Recommendations":
     st.header("💡 Recommendations")
 
-    msg = st.text_area("Write your recommendation")
+    msg = st.text_area("Write recommendation")
 
     if st.button("Send to Owner"):
         recs.setdefault("proto", []).append({
@@ -205,15 +209,11 @@ elif section == "💡 Recommendations":
             "time": now.isoformat()
         })
         save(REC_FILE, recs)
-        st.success("📨 Sent to owner")
+        st.success("📨 Sent")
 
     if user_id == "proto":
-        st.subheader("🔐 Owner Inbox")
         pwd = st.text_input("Owner Password", type="password")
-
         if pwd == "1357924680proto":
             for r in recs.get("proto", []):
                 st.info(f"From: {r['from']}\n\n{r['msg']}")
-        elif pwd:
-            st.error("Wrong password")
 
