@@ -21,6 +21,23 @@ recs = load(REC_FILE)
 
 # ================= USER =================
 st.title("📚 Personal AI Study Assistant")
+st.markdown(
+    """
+    <div style="
+        position: fixed;
+        top: 15px;
+        right: 25px;
+        font-size: 14px;
+        color: gray;
+        opacity: 0.8;
+        z-index: 9999;
+    ">
+        v1.3 <b>beta</b>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
 
 user = st.text_input("Enter your User ID")
 if not user:
