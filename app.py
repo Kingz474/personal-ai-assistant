@@ -1,200 +1,180 @@
 import streamlit as st
 import json, os
-from datetime import datetime, timedelta, time
+from datetime import datetime, time
 
 # ================= FILES =================
 TASK_FILE = "tasks.json"
 REC_FILE = "recommendations.json"
+OBS_FILE = "obstacles.json"
 
-def load(file, default):
+def load(file):
     if os.path.exists(file):
         with open(file, "r") as f:
             return json.load(f)
-    return default
+    return {}
 
 def save(file, data):
     with open(file, "w") as f:
         json.dump(data, f, indent=4)
 
-tasks = load(TASK_FILE, {})
-recs = load(REC_FILE, {})
+tasks = load(TASK_FILE)
+recs = load(REC_FILE)
+obstacles = load(OBS_FILE)
 
-# ================= LOGIN =================
+# ================= USER =================
 st.title("📚 Personal AI Study Assistant")
 
-user_id = st.text_input("Enter your User ID")
-
-if not user_id:
+user = st.text_input("Enter your User ID")
+if not user:
     st.stop()
 
-if user_id not in tasks:
-    tasks[user_id] = []
-    save(TASK_FILE, tasks)
+tasks.setdefault(user, [])
+obstacles.setdefault(user, {})
+save(TASK_FILE, tasks)
+save(OBS_FILE, obstacles)
 
-now = datetime.now()
-
-# ================= SECTION SELECTOR =================
+# ================= MENU =================
 section = st.sidebar.radio(
-    "Choose Section",
+    "Sections",
     [
         "➕ Add Task",
-        "📋 Pending Tasks",
-        "🔥 Priority Tasks",
+        "⭐ Priority Tasks",
         "🧠 Daily Study Plan",
-        "💡 Recommendations"
+        "📩 Recommendations"
     ]
 )
 
-# ====================================================
+# =====================================================
 # ➕ ADD TASK
-# ====================================================
+# =====================================================
 if section == "➕ Add Task":
-    st.header("➕ Add New Task")
+    st.header("➕ Add Task")
 
-    name = st.text_input("Task name")
+    title = st.text_input("Task Name")
     subject = st.text_input("Subject")
     deadline = st.date_input("Deadline")
 
-    difficulty = st.slider("Difficulty", 1, 10, 5)
-    importance = st.slider("Importance", 1, 10, 5)
-    workload = st.slider("Workload", 1, 10, 5)
+    col1, col2, col3 = st.columns(3)
+    difficulty = col1.slider("Difficulty", 1, 5)
+    importance = col2.slider("Importance", 1, 5)
+    workload = col3.slider("Workload", 1, 5)
 
     if st.button("Add Task"):
-        if name.strip():
-            tasks[user_id].append({
-                "name": name,
-                "subject": subject,
-                "deadline": deadline.isoformat(),
-                "difficulty": difficulty,
-                "importance": importance,
-                "workload": workload,
-                "done": False,
-                "done_time": None
-            })
-            save(TASK_FILE, tasks)
-            st.success("Task added")
+        tasks[user].append({
+            "title": title,
+            "subject": subject,
+            "deadline": str(deadline),
+            "difficulty": difficulty,
+            "importance": importance,
+            "workload": workload,
+            "done": False,
+            "done_time": None
+        })
+        save(TASK_FILE, tasks)
+        st.success("Task added")
 
-# ====================================================
-# 📋 PENDING TASKS
-# ====================================================
-elif section == "📋 Pending Tasks":
-    st.header("📋 Pending Tasks")
+# =====================================================
+# ⭐ PRIORITY TASKS
+# =====================================================
+elif section == "⭐ Priority Tasks":
+    st.header("⭐ Priority Tasks")
 
-    for t in tasks[user_id][:]:
-        deadline_dt = datetime.fromisoformat(t["deadline"])
-        overdue = now > deadline_dt and not t["done"]
+    for i, t in enumerate(tasks[user]):
+        score = t["difficulty"] + t["importance"] + t["workload"]
+        expired = datetime.now().date() > datetime.fromisoformat(t["deadline"]).date()
 
-        style = "color:red;" if overdue else ""
-        if t["done"]:
-            style = "opacity:0.4;"
+        col1, col2 = st.columns([5,1])
+        with col1:
+            if expired and not t["done"]:
+                st.error(f"{t['title']} ({t['subject']})")
+            elif t["done"]:
+                st.markdown(f"~~{t['title']}~~")
+            else:
+                st.info(f"{t['title']} ({t['subject']}) | Priority: {score}")
 
-        st.markdown(
-            f"<div style='{style}'>"
-            f"<b>{t['name']}</b> | {t['subject']}<br>"
-            f"Imp: {t['importance']} | Diff: {t['difficulty']} | Load: {t['workload']}<br>"
-            f"Deadline: {t['deadline']}"
-            f"</div>",
-            unsafe_allow_html=True
-        )
+        with col2:
+            if st.checkbox("✔", key=f"done{i}", value=t["done"]):
+                t["done"] = True
+                t["done_time"] = datetime.now().isoformat()
 
-        if st.checkbox("Completed", value=t["done"], key=t["name"]):
-            t["done"] = True
-            t["done_time"] = now.isoformat()
-            save(TASK_FILE, tasks)
+    save(TASK_FILE, tasks)
 
-        if t["done"] and t["done_time"]:
-            if now > datetime.fromisoformat(t["done_time"]) + timedelta(days=1):
-                tasks[user_id].remove(t)
-                save(TASK_FILE, tasks)
-
-# ====================================================
-# 🔥 PRIORITY TASKS
-# ====================================================
-elif section == "🔥 Priority Tasks":
-    st.header("🔥 Priority Tasks")
-
-    def priority_score(t):
-        days_left = (datetime.fromisoformat(t["deadline"]) - now).days
-        urgency = max(0, 10 - days_left)
-        return t["importance"]*2 + t["difficulty"] + t["workload"] + urgency
-
-    sorted_tasks = sorted(tasks[user_id], key=lambda x: (x["done"], -priority_score(x)))
-
-    for t in sorted_tasks:
-        style = "opacity:0.4;" if t["done"] else ""
-        st.markdown(
-            f"<div style='{style}'>"
-            f"<b>{t['name']}</b> | Score: {priority_score(t)}"
-            f"</div>",
-            unsafe_allow_html=True
-        )
-
-# ====================================================
-# 🧠 DAILY STUDY PLAN (OBSTACLE BASED)
-# ====================================================
+# =====================================================
+# 🧠 DAILY STUDY PLAN (UPDATED SECTION)
+# =====================================================
 elif section == "🧠 Daily Study Plan":
-    st.header("🧠 Daily Study Plan (Obstacle Based)")
+    st.header("🧠 Weekly Obstacle Timetable (24-Hour)")
 
-    if "obstacles" not in st.session_state:
-        st.session_state.obstacles = []
+    DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    TIME_SLOTS = [f"{h:02d}:00-{h+1:02d}:00" for h in range(0, 24)]
 
-    st.subheader("➕ Add Fixed Activity / Obstacle")
+    if "table" not in st.session_state:
+        st.session_state.table = {
+            slot: {day: "" for day in DAYS}
+            for slot in TIME_SLOTS
+        }
 
-    obs_name = st.text_input("Obstacle name (College, Food, Sleep, etc)")
-    col1, col2 = st.columns(2)
-    with col1:
-        obs_start = st.time_input("Start time", time(9, 0))
-    with col2:
-        obs_end = st.time_input("End time", time(17, 0))
+    st.subheader("➕ Add Obstacle")
+    obs_name = st.text_input("Obstacle Name (College, Lunch, Travel etc)")
+    obs_day = st.selectbox("Day", DAYS)
+
+    c1, c2 = st.columns(2)
+    start = c1.time_input("Start Time", time(9,0))
+    end = c2.time_input("End Time", time(10,0))
 
     if st.button("Add Obstacle"):
-        st.session_state.obstacles.append({
-            "name": obs_name,
-            "start": obs_start,
-            "end": obs_end
-        })
+        if start >= end:
+            st.error("End time must be after start time")
+        else:
+            for slot in TIME_SLOTS:
+                s, e = slot.split("-")
+                s_time = datetime.strptime(s, "%H:%M").time()
+                e_time = datetime.strptime(e, "%H:%M").time()
+                if s_time >= start and e_time <= end:
+                    st.session_state.table[slot][obs_day] = obs_name
+            st.success("Obstacle added")
 
-    st.divider()
-    st.subheader("📅 Full Day Timetable")
+    st.subheader("📅 Weekly Timetable")
 
-    if st.session_state.obstacles:
-        sorted_obs = sorted(st.session_state.obstacles, key=lambda x: x["start"])
-
-        prev_end = time(0, 0)
-
-        for o in sorted_obs:
-            if prev_end < o["start"]:
-                st.success(f"🟢 Free: {prev_end} - {o['start']}")
-            st.warning(f"🔒 {o['name']}: {o['start']} - {o['end']}")
-            prev_end = o["end"]
-
-        if prev_end < time(23, 59):
-            st.success(f"🟢 Free: {prev_end} - 23:59")
+    for slot in TIME_SLOTS:
+        cols = st.columns(len(DAYS) + 1)
+        cols[0].markdown(f"**{slot}**")
+        for i, day in enumerate(DAYS):
+            val = st.session_state.table[slot][day]
+            if val:
+                cols[i+1].warning(val)
+            else:
+                cols[i+1].success("FREE")
 
     if st.button("🔄 Reset Timetable"):
-        st.session_state.obstacles = []
+        for slot in st.session_state.table:
+            for day in DAYS:
+                st.session_state.table[slot][day] = ""
         st.success("Timetable reset")
 
-# ====================================================
-# 💡 RECOMMENDATIONS
-# ====================================================
-elif section == "💡 Recommendations":
-    st.header("💡 Recommendations")
+# =====================================================
+# 📩 RECOMMENDATIONS
+# =====================================================
+elif section == "📩 Recommendations":
+    st.header("📩 Recommendations")
 
-    msg = st.text_area("Write recommendation")
-
-    if st.button("Send to Owner"):
-        recs.setdefault("proto", []).append({
-            "from": user_id,
-            "msg": msg,
-            "time": now.isoformat()
-        })
-        save(REC_FILE, recs)
-        st.success("Sent")
-
-    if user_id == "proto":
+    if user == "proto":
         pwd = st.text_input("Owner Password", type="password")
         if pwd == "1357924680proto":
-            for r in recs.get("proto", []):
+            recs.setdefault("proto", [])
+            for r in recs["proto"]:
                 st.info(f"From: {r['from']}\n\n{r['msg']}")
+        else:
+            st.error("Wrong password")
+    else:
+        msg = st.text_area("Send recommendation to owner (proto)")
+        if st.button("Send"):
+            recs.setdefault("proto", [])
+            recs["proto"].append({
+                "from": user,
+                "msg": msg,
+                "time": datetime.now().isoformat()
+            })
+            save(REC_FILE, recs)
+            st.success("Sent")
 
