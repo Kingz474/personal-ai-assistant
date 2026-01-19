@@ -1,49 +1,43 @@
 import streamlit as st
-import json, os
+import json, os, hashlib
 from datetime import datetime, time, timedelta
 
 # ================= PAGE CONFIG =================
 st.set_page_config(
     page_title="Personal AI Study Assistant",
-    page_icon="📚",
-    layout="centered"
+    page_icon="📚"
 )
 
 # ================= FILES =================
 TASK_FILE = "tasks.json"
 REC_FILE = "recommendations.json"
+KB_FILE = "knowledge_base.json"
 
-# ================= FAST LOAD (CACHE) =================
+# ================= LOAD / SAVE =================
 @st.cache_data
 def load(file):
     if os.path.exists(file):
-        with open(file, "r") as f:
+        with open(file, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
 def save(file, data):
-    with open(file, "w") as f:
+    with open(file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
 tasks = load(TASK_FILE)
 recs = load(REC_FILE)
+knowledge_base = load(KB_FILE)
 
 # ================= TITLE =================
 st.title("📚 Personal AI Study Assistant")
 st.caption("Plan smarter • Study better • Stay consistent")
 
-# ===== VERSION TAG =====
+# ===== VERSION =====
 st.markdown(
     """
-    <div style="
-        position: fixed;
-        top: 15px;
-        right: 25px;
-        font-size: 13px;
-        color: gray;
-        opacity: 0.75;
-        z-index: 9999;
-    ">
+    <div style="position:fixed;top:15px;right:25px;
+    font-size:13px;color:gray;opacity:0.75;z-index:9999;">
         v1.3 <b>beta</b>
     </div>
     """,
@@ -53,22 +47,22 @@ st.markdown(
 st.divider()
 
 # ================= USER =================
-user = st.text_input("👤 Enter your User ID", placeholder="e.g. kingz01")
+user = st.text_input("👤 Enter your User ID")
 if not user:
-    st.info("Enter a User ID to continue")
     st.stop()
 
 tasks.setdefault(user, [])
 save(TASK_FILE, tasks)
 
-# ================= SIDEBAR =================
+# ================= MENU =================
 section = st.sidebar.radio(
-    "📌 Navigation",
+    "📌 Sections",
     [
         "➕ Add Task",
         "⏳ Pending Tasks",
         "⭐ Priority Tasks",
         "🧠 Daily Study Plan",
+        "📚 Study Help",
         "📩 Recommendations"
     ]
 )
@@ -79,7 +73,7 @@ section = st.sidebar.radio(
 if section == "➕ Add Task":
     st.header("➕ Add Task")
 
-    with st.form("add_task"):
+    with st.form("add_task", clear_on_submit=True):
         title = st.text_input("Task Name")
         subject = st.text_input("Subject")
         deadline = st.date_input("Deadline")
@@ -89,9 +83,9 @@ if section == "➕ Add Task":
         importance = c2.slider("Importance", 1, 5)
         workload = c3.slider("Workload", 1, 5)
 
-        submitted = st.form_submit_button("Add Task")
+        submit = st.form_submit_button("Add Task")
 
-    if submitted:
+    if submit and title.strip():
         tasks[user].append({
             "title": title,
             "subject": subject,
@@ -113,7 +107,7 @@ elif section == "⏳ Pending Tasks":
     now = datetime.now()
 
     if not tasks[user]:
-        st.info("No tasks yet")
+        st.info("No tasks added yet")
     else:
         for i, t in enumerate(tasks[user]):
             deadline = datetime.fromisoformat(t["deadline"]).date()
@@ -123,11 +117,11 @@ elif section == "⏳ Pending Tasks":
             with col1:
                 if t["done"]:
                     st.markdown(
-                        f"<div style='opacity:0.4'>✔ {t['title']} ({t['subject']})</div>",
+                        f"<div style='opacity:0.4'>✔ {t['title']}</div>",
                         unsafe_allow_html=True
                     )
                 elif expired:
-                    st.error(f"❌ {t['title']} ({t['subject']}) — Missed")
+                    st.error(f"❌ {t['title']} — Deadline missed")
                 else:
                     st.info(f"{t['title']} ({t['subject']})")
 
@@ -173,38 +167,85 @@ elif section == "⭐ Priority Tasks":
 elif section == "🧠 Daily Study Plan":
     st.header("🧠 Weekly Obstacle Timetable")
 
-    DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
     TIME_SLOTS = [f"{h:02d}:00-{h+1:02d}:00" for h in range(24)]
 
     if "table" not in st.session_state:
         st.session_state.table = {
-            slot: {day: "" for day in DAYS}
-            for slot in TIME_SLOTS
+            slot: {day: "" for day in DAYS} for slot in TIME_SLOTS
         }
 
     with st.expander("➕ Add Obstacle"):
-        obs_name = st.text_input("Obstacle Name")
-        obs_day = st.selectbox("Day", DAYS)
+        obs = st.text_input("Obstacle Name")
+        day = st.selectbox("Day", DAYS)
         c1, c2 = st.columns(2)
-        start = c1.time_input("Start Time", time(9,0))
-        end = c2.time_input("End Time", time(10,0))
+        start = c1.time_input("Start", time(9,0))
+        end = c2.time_input("End", time(10,0))
 
         if st.button("Add Obstacle"):
-            if start >= end:
-                st.error("End time must be after start time")
-            else:
-                for slot in TIME_SLOTS:
-                    s, e = slot.split("-")
-                    if time.fromisoformat(s) >= start and time.fromisoformat(e) <= end:
-                        st.session_state.table[slot][obs_day] = obs_name
-                st.success("Obstacle added")
+            for slot in TIME_SLOTS:
+                s, e = slot.split("-")
+                if time.fromisoformat(s) >= start and time.fromisoformat(e) <= end:
+                    st.session_state.table[slot][day] = obs
+            st.success("Obstacle added")
 
     for slot in TIME_SLOTS:
-        cols = st.columns(len(DAYS) + 1)
+        cols = st.columns(len(DAYS)+1)
         cols[0].markdown(f"**{slot}**")
-        for i, day in enumerate(DAYS):
-            val = st.session_state.table[slot][day]
+        for i, d in enumerate(DAYS):
+            val = st.session_state.table[slot][d]
             cols[i+1].success("FREE" if not val else val)
+
+# =====================================================
+# 📚 STUDY HELP (NEW)
+# =====================================================
+elif section == "📚 Study Help":
+    st.header("📚 Study Help (Shared Knowledge)")
+    st.caption("Upload once — everyone benefits")
+
+    uploaded = st.file_uploader(
+        "Upload study material",
+        type=["txt","pdf","docx","pptx"]
+    )
+
+    if uploaded:
+        data = uploaded.read()
+        file_hash = hashlib.md5(data).hexdigest()
+
+        if file_hash in knowledge_base:
+            st.info("📄 File already exists. Using stored copy.")
+        else:
+            text = data.decode("utf-8", errors="ignore")
+            knowledge_base[file_hash] = {
+                "filename": uploaded.name,
+                "text": text,
+                "uploaded_by": user,
+                "time": datetime.now().isoformat()
+            }
+            save(KB_FILE, knowledge_base)
+            st.success("✅ File stored globally")
+
+    st.divider()
+
+    question = st.text_input("💬 Ask a question from study material")
+
+    if question:
+        found = []
+        q = question.lower()
+
+        for doc in knowledge_base.values():
+            for line in doc["text"].splitlines():
+                if q in line.lower():
+                    found.append(line.strip())
+                    if len(found) >= 5:
+                        break
+
+        if found:
+            st.success("📖 Answer from knowledge base:")
+            for f in found:
+                st.markdown(f"- {f}")
+        else:
+            st.warning("No matching information found")
 
 # =====================================================
 # 📩 RECOMMENDATIONS
