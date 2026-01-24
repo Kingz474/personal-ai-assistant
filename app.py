@@ -6,6 +6,33 @@ from datetime import datetime
 st.set_page_config("Personal Study Assistant", layout="wide")
 
 # =====================================================
+# SESSION USER LOGIN
+# =====================================================
+if "user_id" not in st.session_state:
+    st.session_state.user_id = None
+
+st.sidebar.title("👤 Login")
+
+if st.session_state.user_id is None:
+    temp_id = st.sidebar.text_input("Enter User ID")
+    if st.sidebar.button("Login"):
+        if temp_id.strip():
+            st.session_state.user_id = temp_id.strip()
+            st.rerun()
+        else:
+            st.sidebar.warning("User ID required")
+else:
+    st.sidebar.success(f"Logged in as: {st.session_state.user_id}")
+    if st.sidebar.button("Logout"):
+        st.session_state.user_id = None
+        st.rerun()
+
+if st.session_state.user_id is None:
+    st.stop()
+
+user_id = st.session_state.user_id
+
+# =====================================================
 # JSON HELPERS
 # =====================================================
 def load_json(file, default):
@@ -36,13 +63,7 @@ recs_db = load_json(REC_FILE, [])
 kb_db = load_json(KB_FILE, {})
 
 # =====================================================
-# USER
-# =====================================================
-st.sidebar.title("👤 User")
-user_id = st.sidebar.text_input("User ID", value="guest")
-
-# =====================================================
-# SECTIONS
+# SIDEBAR SECTIONS
 # =====================================================
 section = st.sidebar.radio(
     "Sections",
@@ -57,7 +78,7 @@ section = st.sidebar.radio(
 )
 
 # =====================================================
-# TASK FUNCTIONS
+# TASK HELPERS
 # =====================================================
 def get_tasks(uid):
     return tasks_db.get(uid, [])
@@ -81,7 +102,8 @@ if section == "➕ Add Task":
 
     if st.button("Add Task"):
         if title.strip():
-            t = {
+            tasks = get_tasks(user_id)
+            tasks.append({
                 "title": title,
                 "subject": subject,
                 "deadline": str(deadline),
@@ -89,9 +111,7 @@ if section == "➕ Add Task":
                 "importance": importance,
                 "workload": workload,
                 "done": False
-            }
-            tasks = get_tasks(user_id)
-            tasks.append(t)
+            })
             save_tasks(user_id, tasks)
             st.success("Task saved")
             st.rerun()
@@ -101,8 +121,8 @@ if section == "➕ Add Task":
 # =====================================================
 elif section == "⏳ Pending Tasks":
     st.header("⏳ Pending Tasks")
-    tasks = get_tasks(user_id)
 
+    tasks = get_tasks(user_id)
     for i, t in enumerate(tasks):
         if not t["done"]:
             cols = st.columns([4,1])
@@ -117,6 +137,7 @@ elif section == "⏳ Pending Tasks":
 # =====================================================
 elif section == "⭐ Priority Tasks":
     st.header("⭐ Priority Tasks")
+
     tasks = sorted(
         get_tasks(user_id),
         key=lambda x: x["importance"] + x["difficulty"] + x["workload"],
@@ -127,7 +148,7 @@ elif section == "⭐ Priority Tasks":
             st.info(f"{t['title']} → {t['subject']}")
 
 # =====================================================
-# 🧠 DAILY STUDY PLAN (START–END OBSTACLES)
+# 🧠 DAILY STUDY PLAN (START–END)
 # =====================================================
 elif section == "🧠 Daily Study Plan":
     st.header("🧠 Daily Study Planner (24-Hour)")
@@ -139,8 +160,8 @@ elif section == "🧠 Daily Study Plan":
 
     st.subheader("Add Obstacle")
     day = st.selectbox("Day", DAYS)
-    start = st.number_input("Start Hour (0-23)", 0, 23)
-    end = st.number_input("End Hour (1-24)", 1, 24)
+    start = st.number_input("Start Hour (0–23)", 0, 23)
+    end = st.number_input("End Hour (1–24)", 1, 24)
     label = st.text_input("Obstacle Name")
 
     if st.button("Add Obstacle"):
@@ -152,7 +173,7 @@ elif section == "🧠 Daily Study Plan":
         })
         obstacles_db[user_id] = user_obs
         save_json(OBSTACLE_FILE, obstacles_db)
-        st.success("Obstacle added")
+        st.success("Obstacle saved")
         st.rerun()
 
     st.subheader("Weekly Planner")
@@ -177,37 +198,33 @@ elif section == "🧠 Daily Study Plan":
         st.rerun()
 
 # =====================================================
-# 📘 STUDY HELP (SHARED KNOWLEDGE BASE)
+# 📘 STUDY HELP (SHARED NOTES)
 # =====================================================
 elif section == "📘 Study Help":
-    st.header("📘 Study Help (Shared Knowledge)")
+    st.header("📘 Study Help (Shared)")
 
     topic = st.text_input("Topic")
-    note = st.text_area("Paste Notes (only once)")
+    notes = st.text_area("Paste Notes (saved once for everyone)")
 
     if st.button("Save Notes"):
-        if topic.strip() and note.strip():
-            kb_db[topic.lower()] = note
+        if topic.strip() and notes.strip():
+            kb_db[topic.lower()] = notes
             save_json(KB_FILE, kb_db)
-            st.success("Saved for everyone")
+            st.success("Saved globally")
 
     st.divider()
 
-    q = st.text_input("Ask a Question")
-    if q:
-        key = q.lower()
-        if key in kb_db:
-            st.success("Main Answer")
-            st.write(kb_db[key])
-            st.info("Explanation")
-            st.write(
-                "• Read carefully\n"
-                "• Understand concepts\n"
-                "• Apply formulas\n"
-                "• Revise examples"
-            )
-        else:
-            st.warning("No notes yet. Add once to help all users.")
+    q = st.text_input("Search Topic")
+    if q.lower() in kb_db:
+        st.success("Main Content")
+        st.write(kb_db[q.lower()])
+        st.info("Explanation")
+        st.write(
+            "• Understand concept\n"
+            "• Apply formula\n"
+            "• Practice examples\n"
+            "• Revise regularly"
+        )
 
 # =====================================================
 # 📩 RECOMMENDATIONS
@@ -215,7 +232,8 @@ elif section == "📘 Study Help":
 elif section == "📩 Recommendations":
     st.header("📩 Recommendations")
 
-    msg = st.text_area("Send recommendation")
+    msg = st.text_area("Send recommendation to owner")
+
     if st.button("Send"):
         if msg.strip():
             recs_db.append({
@@ -228,8 +246,7 @@ elif section == "📩 Recommendations":
 
     if user_id == "proto":
         st.subheader("Owner Inbox")
-        pwd = st.text_input("Password", type="password")
+        pwd = st.text_input("Owner Password", type="password")
         if pwd == "1357924680proto":
             for r in recs_db[::-1]:
                 st.info(f"{r['from']} → {r['msg']}")
-
