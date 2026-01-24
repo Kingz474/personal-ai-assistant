@@ -1,278 +1,242 @@
 import streamlit as st
-import json, os, hashlib
-from datetime import datetime, time, timedelta
+import json
+import os
+from datetime import datetime, timedelta
 
-# ================= PAGE CONFIG =================
-st.set_page_config(
-    page_title="Personal Study Assistant",
-    page_icon="📚",
-    layout="wide"
-)
+st.set_page_config(page_title="Personal Study Assistant", layout="wide")
 
-# ================= SOFT UI CSS =================
-st.markdown("""
-<style>
-.block-container {
-    padding-top: 2rem;
-}
-.card {
-    padding: 1.2rem;
-    border-radius: 12px;
-    background-color: #ffffff10;
-    margin-bottom: 1rem;
-}
-.chat-user {
-    background: #1f2937;
-    padding: 10px;
-    border-radius: 10px;
-    margin-bottom: 6px;
-}
-.chat-ai {
-    background: #0f766e;
-    padding: 10px;
-    border-radius: 10px;
-    margin-bottom: 6px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ================= FILES =================
-TASK_FILE = "tasks.json"
-REC_FILE = "recommendations.json"
-KB_FILE = "knowledge_base.json"
-
-# ================= LOAD / SAVE =================
-@st.cache_data
-def load(file):
-    if os.path.exists(file):
-        with open(file, "r", encoding="utf-8") as f:
+# ===============================
+# JSON HELPERS
+# ===============================
+def load_json(file, default):
+    if not os.path.exists(file):
+        with open(file, "w") as f:
+            json.dump(default, f)
+    with open(file, "r") as f:
+        try:
             return json.load(f)
-    return {}
+        except:
+            return default
 
-def save(file, data):
-    with open(file, "w", encoding="utf-8") as f:
+def save_json(file, data):
+    with open(file, "w") as f:
         json.dump(data, f, indent=4)
 
-tasks = load(TASK_FILE)
-recs = load(REC_FILE)
-knowledge_base = load(KB_FILE)
+# ===============================
+# FILE PATHS
+# ===============================
+TASK_FILE = "tasks_data.json"
+OBSTACLE_FILE = "obstacles.json"
+REC_FILE = "recommendations.json"
 
-# ================= HEADER =================
-st.markdown("## 📚 Personal Study Assistant")
-st.caption("Plan • Organize • Learn smarter")
+tasks_db = load_json(TASK_FILE, {})
+obstacles_db = load_json(OBSTACLE_FILE, {})
+recs_db = load_json(REC_FILE, [])
 
-st.markdown("""
-<div style="position:fixed;top:18px;right:30px;
-font-size:12px;color:#9ca3af;">
-v1.3
-</div>
-""", unsafe_allow_html=True)
+# ===============================
+# USER LOGIN (SIMPLE ID)
+# ===============================
+st.sidebar.title("👤 User")
+user_id = st.sidebar.text_input("Enter your User ID", value="guest")
 
-st.divider()
-
-# ================= USER =================
-user = st.text_input("User ID", placeholder="Enter your name or ID")
-if not user:
-    st.stop()
-
-tasks.setdefault(user, [])
-save(TASK_FILE, tasks)
-
-# ================= SIDEBAR =================
-st.sidebar.markdown("### 📌 Menu")
+# ===============================
+# SIDEBAR SECTIONS
+# ===============================
 section = st.sidebar.radio(
-    "",
+    "Sections",
     [
         "➕ Add Task",
         "⏳ Pending Tasks",
         "⭐ Priority Tasks",
         "🧠 Daily Study Plan",
-        "📚 Study Help",
+        "📘 Study Help",
         "📩 Recommendations"
     ]
 )
 
-# =====================================================
+# ===============================
+# TASK HELPERS
+# ===============================
+def get_tasks(uid):
+    return tasks_db.get(uid, [])
+
+def save_tasks(uid, tasks):
+    tasks_db[uid] = tasks
+    save_json(TASK_FILE, tasks_db)
+
+# ===============================
 # ➕ ADD TASK
-# =====================================================
+# ===============================
 if section == "➕ Add Task":
-    st.markdown("### ➕ Add New Task")
+    st.header("➕ Add Task")
 
-    with st.form("task_form", clear_on_submit=True):
-        title = st.text_input("Task Name")
-        subject = st.text_input("Subject")
-        deadline = st.date_input("Deadline")
+    title = st.text_input("Task Title")
+    subject = st.text_input("Subject")
+    deadline = st.date_input("Deadline")
+    difficulty = st.slider("Difficulty", 1, 5, 3)
+    importance = st.slider("Importance", 1, 5, 3)
+    workload = st.slider("Workload", 1, 10, 5)
 
-        c1, c2, c3 = st.columns(3)
-        difficulty = c1.slider("Difficulty", 1, 5)
-        importance = c2.slider("Importance", 1, 5)
-        workload = c3.slider("Workload", 1, 5)
-
-        submit = st.form_submit_button("Add Task")
-
-    if submit and title.strip():
-        tasks[user].append({
-            "title": title,
-            "subject": subject,
-            "deadline": str(deadline),
-            "difficulty": difficulty,
-            "importance": importance,
-            "workload": workload,
-            "done": False,
-            "done_time": None
-        })
-        save(TASK_FILE, tasks)
-        st.success("Task added successfully")
-
-# =====================================================
-# ⏳ PENDING TASKS
-# =====================================================
-elif section == "⏳ Pending Tasks":
-    st.markdown("### ⏳ Pending Tasks")
-
-    now = datetime.now()
-    for i, t in enumerate(tasks[user]):
-        deadline = datetime.fromisoformat(t["deadline"]).date()
-        expired = now.date() > deadline
-
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-
-        if t["done"]:
-            st.markdown(f"✔ **{t['title']}** *(completed)*")
-        elif expired:
-            st.error(f"{t['title']} — Deadline missed")
+    if st.button("Add Task"):
+        if title.strip() == "":
+            st.warning("Enter task title")
         else:
-            st.info(f"{t['title']} ({t['subject']})")
+            tasks = get_tasks(user_id)
+            tasks.append({
+                "title": title,
+                "subject": subject,
+                "deadline": str(deadline),
+                "difficulty": difficulty,
+                "importance": importance,
+                "workload": workload,
+                "done": False,
+                "done_time": None
+            })
+            save_tasks(user_id, tasks)
+            st.success("Task Added")
+            st.rerun()
 
-        if st.checkbox("Mark as done", key=f"p{i}", value=t["done"]):
-            t["done"] = True
-            t["done_time"] = datetime.now().isoformat()
+# ===============================
+# ⏳ PENDING TASKS
+# ===============================
+elif section == "⏳ Pending Tasks":
+    st.header("⏳ Pending Tasks")
 
-        st.markdown("</div>", unsafe_allow_html=True)
+    tasks = get_tasks(user_id)
+    today = datetime.now().date()
 
-    save(TASK_FILE, tasks)
+    for i, t in enumerate(tasks):
+        if not t["done"]:
+            deadline = datetime.fromisoformat(t["deadline"]).date()
+            expired = deadline < today
 
-# =====================================================
+            cols = st.columns([4, 1])
+            with cols[0]:
+                st.markdown(
+                    f"**{t['title']}** ({t['subject']})  \n"
+                    f"Deadline: {t['deadline']}"
+                )
+            with cols[1]:
+                if expired:
+                    st.error("Late")
+                else:
+                    if st.checkbox("Done", key=f"done_{i}"):
+                        t["done"] = True
+                        t["done_time"] = datetime.now().isoformat()
+                        save_tasks(user_id, tasks)
+                        st.rerun()
+
+# ===============================
 # ⭐ PRIORITY TASKS
-# =====================================================
+# ===============================
 elif section == "⭐ Priority Tasks":
-    st.markdown("### ⭐ Priority Overview")
+    st.header("⭐ Priority Tasks")
 
-    for i, t in enumerate(tasks[user]):
-        score = t["difficulty"] + t["importance"] + t["workload"]
-
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown(f"**{t['title']}** — Priority: `{score}`")
-
-        if st.checkbox("Completed", key=f"s{i}", value=t["done"]):
-            t["done"] = True
-            t["done_time"] = datetime.now().isoformat()
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    save(TASK_FILE, tasks)
-
-# =====================================================
-# 🧠 DAILY STUDY PLAN
-# =====================================================
-elif section == "🧠 Daily Study Plan":
-    st.markdown("### 🧠 Weekly Study Planner")
-
-    DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
-    TIME_SLOTS = [f"{h:02d}:00-{h+1:02d}:00" for h in range(24)]
-
-    if "table" not in st.session_state:
-        st.session_state.table = {
-            slot: {day: "" for day in DAYS} for slot in TIME_SLOTS
-        }
-
-    with st.expander("➕ Add Obstacle"):
-        obs = st.text_input("Obstacle name")
-        day = st.selectbox("Day", DAYS)
-        c1, c2 = st.columns(2)
-        start = c1.time_input("Start", time(9,0))
-        end = c2.time_input("End", time(10,0))
-
-        if st.button("Add"):
-            for slot in TIME_SLOTS:
-                s, e = slot.split("-")
-                if time.fromisoformat(s) >= start and time.fromisoformat(e) <= end:
-                    st.session_state.table[slot][day] = obs
-            st.success("Obstacle added")
-
-    for slot in TIME_SLOTS:
-        cols = st.columns(len(DAYS)+1)
-        cols[0].markdown(f"**{slot}**")
-        for i, d in enumerate(DAYS):
-            cols[i+1].markdown(
-                "🟢 FREE" if not st.session_state.table[slot][d]
-                else f"🔴 {st.session_state.table[slot][d]}"
-            )
-
-# =====================================================
-# 📚 STUDY HELP
-# =====================================================
-elif section == "📚 Study Help":
-    st.markdown("### 📚 Study Help")
-    st.caption("Shared knowledge — upload once, reuse forever")
-
-    uploaded = st.file_uploader(
-        "Upload document",
-        type=["txt","pdf","docx","pptx"]
+    tasks = get_tasks(user_id)
+    tasks_sorted = sorted(
+        tasks,
+        key=lambda x: x["importance"] + x["difficulty"] + x["workload"],
+        reverse=True
     )
 
-    if uploaded:
-        data = uploaded.read()
-        h = hashlib.md5(data).hexdigest()
+    for t in tasks_sorted:
+        if not t["done"]:
+            st.info(
+                f"{t['title']} | {t['subject']}  \n"
+                f"Importance: {t['importance']} | Difficulty: {t['difficulty']} | Workload: {t['workload']}"
+            )
 
-        if h not in knowledge_base:
-            knowledge_base[h] = {
-                "filename": uploaded.name,
-                "text": data.decode("utf-8", errors="ignore")
-            }
-            save(KB_FILE, knowledge_base)
-            st.success("Document stored")
+# ===============================
+# 🧠 DAILY STUDY PLAN (OBSTACLES)
+# ===============================
+elif section == "🧠 Daily Study Plan":
+    st.header("🧠 Daily Study Plan")
 
-    st.divider()
+    DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    HOURS = [f"{h:02d}:00" for h in range(24)]
 
-    q = st.text_input("Ask a question")
-    if q:
-        st.markdown("<div class='chat-user'>You: " + q + "</div>", unsafe_allow_html=True)
+    user_obs = obstacles_db.get(user_id, {})
 
-        answers = []
-        for doc in knowledge_base.values():
-            for line in doc["text"].splitlines():
-                if q.lower() in line.lower():
-                    answers.append(line.strip())
-                    if len(answers) >= 4:
-                        break
+    st.subheader("Add Obstacle")
+    day = st.selectbox("Day", DAYS)
+    hour = st.selectbox("Hour", HOURS)
+    label = st.text_input("Obstacle Name")
 
-        if answers:
-            for a in answers:
-                st.markdown("<div class='chat-ai'>" + a + "</div>", unsafe_allow_html=True)
+    if st.button("Add Obstacle"):
+        user_obs.setdefault(day, {})[hour] = label
+        obstacles_db[user_id] = user_obs
+        save_json(OBSTACLE_FILE, obstacles_db)
+        st.success("Obstacle added")
+        st.rerun()
+
+    st.subheader("Weekly Timeline")
+
+    for h in HOURS:
+        cols = st.columns(len(DAYS) + 1)
+        cols[0].markdown(f"**{h}**")
+        for i, d in enumerate(DAYS):
+            val = user_obs.get(d, {}).get(h)
+            with cols[i + 1]:
+                if val:
+                    st.warning(val)
+                else:
+                    st.success("FREE")
+
+    if st.button("Reset Planner"):
+        obstacles_db[user_id] = {}
+        save_json(OBSTACLE_FILE, obstacles_db)
+        st.rerun()
+
+# ===============================
+# 📘 STUDY HELP (FREE)
+# ===============================
+elif section == "📘 Study Help":
+    st.header("📘 Study Help (Free)")
+
+    subject = st.selectbox(
+        "Subject",
+        ["Math", "Physics", "Chemistry", "EGM", "EDG", "PCO", "MPR", "Other"]
+    )
+    q = st.text_area("Ask your question")
+
+    if st.button("Get Help"):
+        if subject == "Physics" and "ohm" in q.lower():
+            st.success("Main Answer")
+            st.write("Ohm's Law: Voltage is proportional to current.")
+            st.info("Explanation")
+            st.write("V = I × R")
         else:
-            st.markdown("<div class='chat-ai'>No matching info found.</div>", unsafe_allow_html=True)
+            st.info("Study Tip")
+            st.write(
+                "1. Understand question\n"
+                "2. Write formula\n"
+                "3. Solve step-by-step\n"
+                "4. Revise"
+            )
 
-# =====================================================
+# ===============================
 # 📩 RECOMMENDATIONS
-# =====================================================
+# ===============================
 elif section == "📩 Recommendations":
-    st.markdown("### 📩 Recommendations")
+    st.header("📩 Recommendations")
 
-    if user == "proto":
-        pwd = st.text_input("Password", type="password")
-        if pwd == "1357924680proto":
-            for r in recs.get("proto", []):
-                st.info(f"From {r['from']}:\n\n{r['msg']}")
-    else:
-        msg = st.text_area("Send feedback")
-        if st.button("Send"):
-            recs.setdefault("proto", []).append({
-                "from": user,
+    msg = st.text_area("Send a recommendation")
+
+    if st.button("Send"):
+        if msg.strip():
+            recs_db.append({
+                "from": user_id,
                 "msg": msg,
                 "time": datetime.now().isoformat()
             })
-            save(REC_FILE, recs)
+            save_json(REC_FILE, recs_db)
             st.success("Sent")
+            st.rerun()
 
+    if user_id == "proto":
+        st.subheader("Owner Inbox")
+        password = st.text_input("Owner Password", type="password")
 
+        if password == "1357924680proto":
+            for r in recs_db[::-1]:
+                st.info(f"{r['from']} → {r['msg']}")
