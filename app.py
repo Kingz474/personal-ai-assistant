@@ -2,19 +2,24 @@ import streamlit as st
 import json
 import os
 from datetime import datetime
-from PyPDF2 import PdfReader
 
-# ==========================
-# OPTIONAL OCR (SAFE)
-# ==========================
+st.set_page_config("Personal Study Assistant", layout="wide")
+
+# =====================================================
+# OPTIONAL LIBRARIES (SAFE IMPORTS)
+# =====================================================
+try:
+    from PyPDF2 import PdfReader
+    PDF_AVAILABLE = True
+except:
+    PDF_AVAILABLE = False
+
 try:
     from PIL import Image
     import pytesseract
     OCR_AVAILABLE = True
 except:
     OCR_AVAILABLE = False
-
-st.set_page_config("Personal Study Assistant", layout="wide")
 
 # =====================================================
 # SESSION LOGIN (FIXED USER ID)
@@ -129,11 +134,11 @@ if section == "➕ Add Task":
 # =====================================================
 elif section == "⏳ Pending Tasks":
     st.header("⏳ Pending Tasks")
-    tasks = get_tasks(user_id)
 
+    tasks = get_tasks(user_id)
     for i, t in enumerate(tasks):
         if not t["done"]:
-            cols = st.columns([4,1])
+            cols = st.columns([4, 1])
             cols[0].markdown(f"**{t['title']}** ({t['subject']})")
             if cols[1].checkbox("Done", key=f"d{i}"):
                 t["done"] = True
@@ -161,7 +166,7 @@ elif section == "⭐ Priority Tasks":
 elif section == "🧠 Daily Study Plan":
     st.header("🧠 Daily Study Planner (24-Hour)")
 
-    DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     HOURS = list(range(24))
     user_obs = obstacles_db.get(user_id, [])
 
@@ -186,21 +191,21 @@ elif section == "🧠 Daily Study Plan":
     st.subheader("Weekly Planner")
 
     for h in HOURS:
-        cols = st.columns(len(DAYS)+1)
+        cols = st.columns(len(DAYS) + 1)
         cols[0].markdown(f"**{h:02d}:00**")
         for i, d in enumerate(DAYS):
             block = None
             for o in user_obs:
                 if o["day"] == d and o["start"] <= h < o["end"]:
                     block = o["label"]
-            with cols[i+1]:
+            with cols[i + 1]:
                 if block:
                     st.warning(block)
                 else:
                     st.success("FREE")
 
 # =====================================================
-# 📘 STUDY HELP (PDF + IMAGE + TEXT)
+# 📘 STUDY HELP (SAFE: PDF + IMAGE + TEXT)
 # =====================================================
 elif section == "📘 Study Help":
     st.header("📘 Study Help (Upload Once, Use Forever)")
@@ -213,12 +218,15 @@ elif section == "📘 Study Help":
     with tabs[0]:
         pdf = st.file_uploader("Upload PDF", type=["pdf"])
         if pdf:
-            reader = PdfReader(pdf)
-            for page in reader.pages:
-                extracted_text += page.extract_text() or ""
+            if PDF_AVAILABLE:
+                reader = PdfReader(pdf)
+                for page in reader.pages:
+                    extracted_text += page.extract_text() or ""
+            else:
+                st.warning("PDF support not available on this system.")
 
     with tabs[1]:
-        img = st.file_uploader("Upload Image", type=["jpg","png","jpeg"])
+        img = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
         if img:
             if OCR_AVAILABLE:
                 image = Image.open(img)
@@ -244,10 +252,10 @@ elif section == "📘 Study Help":
         st.write(kb_db[query.lower()])
         st.info("Explanation")
         st.write(
-            "• Read carefully\n"
             "• Understand concepts\n"
             "• Apply formulas\n"
-            "• Practice examples"
+            "• Practice examples\n"
+            "• Revise regularly"
         )
 
 # =====================================================
