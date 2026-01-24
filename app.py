@@ -2,15 +2,22 @@ import streamlit as st
 import json
 import os
 from datetime import datetime
-
-from PIL import Image
-import pytesseract
 from PyPDF2 import PdfReader
+
+# ==========================
+# OPTIONAL OCR (SAFE)
+# ==========================
+try:
+    from PIL import Image
+    import pytesseract
+    OCR_AVAILABLE = True
+except:
+    OCR_AVAILABLE = False
 
 st.set_page_config("Personal Study Assistant", layout="wide")
 
 # =====================================================
-# SESSION LOGIN
+# SESSION LOGIN (FIXED USER ID)
 # =====================================================
 if "user_id" not in st.session_state:
     st.session_state.user_id = None
@@ -94,6 +101,7 @@ def save_tasks(uid, tasks):
 # =====================================================
 if section == "➕ Add Task":
     st.header("➕ Add Task")
+
     title = st.text_input("Task Title")
     subject = st.text_input("Subject")
     deadline = st.date_input("Deadline")
@@ -122,6 +130,7 @@ if section == "➕ Add Task":
 elif section == "⏳ Pending Tasks":
     st.header("⏳ Pending Tasks")
     tasks = get_tasks(user_id)
+
     for i, t in enumerate(tasks):
         if not t["done"]:
             cols = st.columns([4,1])
@@ -136,6 +145,7 @@ elif section == "⏳ Pending Tasks":
 # =====================================================
 elif section == "⭐ Priority Tasks":
     st.header("⭐ Priority Tasks")
+
     tasks = sorted(
         get_tasks(user_id),
         key=lambda x: x["importance"] + x["difficulty"] + x["workload"],
@@ -153,21 +163,27 @@ elif section == "🧠 Daily Study Plan":
 
     DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
     HOURS = list(range(24))
-
     user_obs = obstacles_db.get(user_id, [])
 
     st.subheader("Add Obstacle")
     day = st.selectbox("Day", DAYS)
-    start = st.number_input("Start Hour", 0, 23)
-    end = st.number_input("End Hour", 1, 24)
+    start = st.number_input("Start Hour (0–23)", 0, 23)
+    end = st.number_input("End Hour (1–24)", 1, 24)
     label = st.text_input("Obstacle Name")
 
     if st.button("Add Obstacle"):
-        user_obs.append({"day": day, "start": start, "end": end, "label": label})
+        user_obs.append({
+            "day": day,
+            "start": start,
+            "end": end,
+            "label": label
+        })
         obstacles_db[user_id] = user_obs
         save_json(OBSTACLE_FILE, obstacles_db)
         st.success("Obstacle added")
         st.rerun()
+
+    st.subheader("Weekly Planner")
 
     for h in HOURS:
         cols = st.columns(len(DAYS)+1)
@@ -178,41 +194,43 @@ elif section == "🧠 Daily Study Plan":
                 if o["day"] == d and o["start"] <= h < o["end"]:
                     block = o["label"]
             with cols[i+1]:
-                st.warning(block) if block else st.success("FREE")
+                if block:
+                    st.warning(block)
+                else:
+                    st.success("FREE")
 
 # =====================================================
-# 📘 STUDY HELP (DOCUMENT UPLOAD)
+# 📘 STUDY HELP (PDF + IMAGE + TEXT)
 # =====================================================
 elif section == "📘 Study Help":
-    st.header("📘 Study Help (Upload Once – Use Forever)")
+    st.header("📘 Study Help (Upload Once, Use Forever)")
 
     topic = st.text_input("Topic / Chapter Name")
 
-    tab1, tab2, tab3 = st.tabs(["📄 PDF", "🖼 Image", "✍ Text"])
-
+    tabs = st.tabs(["📄 PDF", "🖼 Image", "✍ Text"])
     extracted_text = ""
 
-    with tab1:
+    with tabs[0]:
         pdf = st.file_uploader("Upload PDF", type=["pdf"])
         if pdf:
             reader = PdfReader(pdf)
             for page in reader.pages:
                 extracted_text += page.extract_text() or ""
 
-    with tab2:
-        img = st.file_uploader("Upload Image", type=["png","jpg","jpeg"])
+    with tabs[1]:
+        img = st.file_uploader("Upload Image", type=["jpg","png","jpeg"])
         if img:
-            image = Image.open(img)
-            st.image(image, caption="Uploaded Image")
-            try:
+            if OCR_AVAILABLE:
+                image = Image.open(img)
+                st.image(image, caption="Uploaded Image")
                 extracted_text += pytesseract.image_to_string(image)
-            except:
-                st.warning("Tesseract OCR not installed")
+            else:
+                st.warning("Image OCR not available. Use PDF or Text.")
 
-    with tab3:
+    with tabs[2]:
         extracted_text += st.text_area("Paste notes manually")
 
-    if st.button("Save to Knowledge Base"):
+    if st.button("Save Notes"):
         if topic.strip() and extracted_text.strip():
             kb_db[topic.lower()] = extracted_text
             save_json(KB_FILE, kb_db)
@@ -239,6 +257,7 @@ elif section == "📩 Recommendations":
     st.header("📩 Recommendations")
 
     msg = st.text_area("Send recommendation to owner")
+
     if st.button("Send") and msg.strip():
         recs_db.append({
             "from": user_id,
