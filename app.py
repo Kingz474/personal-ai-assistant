@@ -1,13 +1,13 @@
 import streamlit as st
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
-st.set_page_config(page_title="Personal Study Assistant", layout="wide")
+st.set_page_config("Personal Study Assistant", layout="wide")
 
-# ===============================
+# =====================================================
 # JSON HELPERS
-# ===============================
+# =====================================================
 def load_json(file, default):
     if not os.path.exists(file):
         with open(file, "w") as f:
@@ -22,26 +22,28 @@ def save_json(file, data):
     with open(file, "w") as f:
         json.dump(data, f, indent=4)
 
-# ===============================
-# FILE PATHS
-# ===============================
+# =====================================================
+# FILES
+# =====================================================
 TASK_FILE = "tasks_data.json"
 OBSTACLE_FILE = "obstacles.json"
 REC_FILE = "recommendations.json"
+KB_FILE = "knowledge_base.json"
 
 tasks_db = load_json(TASK_FILE, {})
 obstacles_db = load_json(OBSTACLE_FILE, {})
 recs_db = load_json(REC_FILE, [])
+kb_db = load_json(KB_FILE, {})
 
-# ===============================
-# USER LOGIN (SIMPLE ID)
-# ===============================
+# =====================================================
+# USER
+# =====================================================
 st.sidebar.title("👤 User")
-user_id = st.sidebar.text_input("Enter your User ID", value="guest")
+user_id = st.sidebar.text_input("User ID", value="guest")
 
-# ===============================
-# SIDEBAR SECTIONS
-# ===============================
+# =====================================================
+# SECTIONS
+# =====================================================
 section = st.sidebar.radio(
     "Sections",
     [
@@ -54,9 +56,9 @@ section = st.sidebar.radio(
     ]
 )
 
-# ===============================
-# TASK HELPERS
-# ===============================
+# =====================================================
+# TASK FUNCTIONS
+# =====================================================
 def get_tasks(uid):
     return tasks_db.get(uid, [])
 
@@ -64,9 +66,9 @@ def save_tasks(uid, tasks):
     tasks_db[uid] = tasks
     save_json(TASK_FILE, tasks_db)
 
-# ===============================
+# =====================================================
 # ➕ ADD TASK
-# ===============================
+# =====================================================
 if section == "➕ Add Task":
     st.header("➕ Add Task")
 
@@ -78,150 +80,142 @@ if section == "➕ Add Task":
     workload = st.slider("Workload", 1, 10, 5)
 
     if st.button("Add Task"):
-        if title.strip() == "":
-            st.warning("Enter task title")
-        else:
-            tasks = get_tasks(user_id)
-            tasks.append({
+        if title.strip():
+            t = {
                 "title": title,
                 "subject": subject,
                 "deadline": str(deadline),
                 "difficulty": difficulty,
                 "importance": importance,
                 "workload": workload,
-                "done": False,
-                "done_time": None
-            })
+                "done": False
+            }
+            tasks = get_tasks(user_id)
+            tasks.append(t)
             save_tasks(user_id, tasks)
-            st.success("Task Added")
+            st.success("Task saved")
             st.rerun()
 
-# ===============================
+# =====================================================
 # ⏳ PENDING TASKS
-# ===============================
+# =====================================================
 elif section == "⏳ Pending Tasks":
     st.header("⏳ Pending Tasks")
-
     tasks = get_tasks(user_id)
-    today = datetime.now().date()
 
     for i, t in enumerate(tasks):
         if not t["done"]:
-            deadline = datetime.fromisoformat(t["deadline"]).date()
-            expired = deadline < today
+            cols = st.columns([4,1])
+            cols[0].markdown(f"**{t['title']}** ({t['subject']})")
+            if cols[1].checkbox("Done", key=f"d{i}"):
+                t["done"] = True
+                save_tasks(user_id, tasks)
+                st.rerun()
 
-            cols = st.columns([4, 1])
-            with cols[0]:
-                st.markdown(
-                    f"**{t['title']}** ({t['subject']})  \n"
-                    f"Deadline: {t['deadline']}"
-                )
-            with cols[1]:
-                if expired:
-                    st.error("Late")
-                else:
-                    if st.checkbox("Done", key=f"done_{i}"):
-                        t["done"] = True
-                        t["done_time"] = datetime.now().isoformat()
-                        save_tasks(user_id, tasks)
-                        st.rerun()
-
-# ===============================
+# =====================================================
 # ⭐ PRIORITY TASKS
-# ===============================
+# =====================================================
 elif section == "⭐ Priority Tasks":
     st.header("⭐ Priority Tasks")
-
-    tasks = get_tasks(user_id)
-    tasks_sorted = sorted(
-        tasks,
+    tasks = sorted(
+        get_tasks(user_id),
         key=lambda x: x["importance"] + x["difficulty"] + x["workload"],
         reverse=True
     )
-
-    for t in tasks_sorted:
+    for t in tasks:
         if not t["done"]:
-            st.info(
-                f"{t['title']} | {t['subject']}  \n"
-                f"Importance: {t['importance']} | Difficulty: {t['difficulty']} | Workload: {t['workload']}"
-            )
+            st.info(f"{t['title']} → {t['subject']}")
 
-# ===============================
-# 🧠 DAILY STUDY PLAN (OBSTACLES)
-# ===============================
+# =====================================================
+# 🧠 DAILY STUDY PLAN (START–END OBSTACLES)
+# =====================================================
 elif section == "🧠 Daily Study Plan":
-    st.header("🧠 Daily Study Plan")
+    st.header("🧠 Daily Study Planner (24-Hour)")
 
-    DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    HOURS = [f"{h:02d}:00" for h in range(24)]
+    DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    HOURS = list(range(24))
 
-    user_obs = obstacles_db.get(user_id, {})
+    user_obs = obstacles_db.get(user_id, [])
 
     st.subheader("Add Obstacle")
     day = st.selectbox("Day", DAYS)
-    hour = st.selectbox("Hour", HOURS)
+    start = st.number_input("Start Hour (0-23)", 0, 23)
+    end = st.number_input("End Hour (1-24)", 1, 24)
     label = st.text_input("Obstacle Name")
 
     if st.button("Add Obstacle"):
-        user_obs.setdefault(day, {})[hour] = label
+        user_obs.append({
+            "day": day,
+            "start": start,
+            "end": end,
+            "label": label
+        })
         obstacles_db[user_id] = user_obs
         save_json(OBSTACLE_FILE, obstacles_db)
         st.success("Obstacle added")
         st.rerun()
 
-    st.subheader("Weekly Timeline")
+    st.subheader("Weekly Planner")
 
     for h in HOURS:
-        cols = st.columns(len(DAYS) + 1)
-        cols[0].markdown(f"**{h}**")
+        cols = st.columns(len(DAYS)+1)
+        cols[0].markdown(f"**{h:02d}:00**")
         for i, d in enumerate(DAYS):
-            val = user_obs.get(d, {}).get(h)
-            with cols[i + 1]:
-                if val:
-                    st.warning(val)
+            block = None
+            for o in user_obs:
+                if o["day"] == d and o["start"] <= h < o["end"]:
+                    block = o["label"]
+            with cols[i+1]:
+                if block:
+                    st.warning(block)
                 else:
                     st.success("FREE")
 
     if st.button("Reset Planner"):
-        obstacles_db[user_id] = {}
+        obstacles_db[user_id] = []
         save_json(OBSTACLE_FILE, obstacles_db)
         st.rerun()
 
-# ===============================
-# 📘 STUDY HELP (FREE)
-# ===============================
+# =====================================================
+# 📘 STUDY HELP (SHARED KNOWLEDGE BASE)
+# =====================================================
 elif section == "📘 Study Help":
-    st.header("📘 Study Help (Free)")
+    st.header("📘 Study Help (Shared Knowledge)")
 
-    subject = st.selectbox(
-        "Subject",
-        ["Math", "Physics", "Chemistry", "EGM", "EDG", "PCO", "MPR", "Other"]
-    )
-    q = st.text_area("Ask your question")
+    topic = st.text_input("Topic")
+    note = st.text_area("Paste Notes (only once)")
 
-    if st.button("Get Help"):
-        if subject == "Physics" and "ohm" in q.lower():
+    if st.button("Save Notes"):
+        if topic.strip() and note.strip():
+            kb_db[topic.lower()] = note
+            save_json(KB_FILE, kb_db)
+            st.success("Saved for everyone")
+
+    st.divider()
+
+    q = st.text_input("Ask a Question")
+    if q:
+        key = q.lower()
+        if key in kb_db:
             st.success("Main Answer")
-            st.write("Ohm's Law: Voltage is proportional to current.")
+            st.write(kb_db[key])
             st.info("Explanation")
-            st.write("V = I × R")
-        else:
-            st.info("Study Tip")
             st.write(
-                "1. Understand question\n"
-                "2. Write formula\n"
-                "3. Solve step-by-step\n"
-                "4. Revise"
+                "• Read carefully\n"
+                "• Understand concepts\n"
+                "• Apply formulas\n"
+                "• Revise examples"
             )
+        else:
+            st.warning("No notes yet. Add once to help all users.")
 
-# ===============================
+# =====================================================
 # 📩 RECOMMENDATIONS
-# ===============================
+# =====================================================
 elif section == "📩 Recommendations":
     st.header("📩 Recommendations")
 
-    msg = st.text_area("Send a recommendation")
-
+    msg = st.text_area("Send recommendation")
     if st.button("Send"):
         if msg.strip():
             recs_db.append({
@@ -231,12 +225,11 @@ elif section == "📩 Recommendations":
             })
             save_json(REC_FILE, recs_db)
             st.success("Sent")
-            st.rerun()
 
     if user_id == "proto":
         st.subheader("Owner Inbox")
-        password = st.text_input("Owner Password", type="password")
-
-        if password == "1357924680proto":
+        pwd = st.text_input("Password", type="password")
+        if pwd == "1357924680proto":
             for r in recs_db[::-1]:
                 st.info(f"{r['from']} → {r['msg']}")
+
