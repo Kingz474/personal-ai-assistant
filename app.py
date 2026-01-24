@@ -3,10 +3,14 @@ import json
 import os
 from datetime import datetime
 
+from PIL import Image
+import pytesseract
+from PyPDF2 import PdfReader
+
 st.set_page_config("Personal Study Assistant", layout="wide")
 
 # =====================================================
-# SESSION USER LOGIN
+# SESSION LOGIN
 # =====================================================
 if "user_id" not in st.session_state:
     st.session_state.user_id = None
@@ -19,8 +23,6 @@ if st.session_state.user_id is None:
         if temp_id.strip():
             st.session_state.user_id = temp_id.strip()
             st.rerun()
-        else:
-            st.sidebar.warning("User ID required")
 else:
     st.sidebar.success(f"Logged in as: {st.session_state.user_id}")
     if st.sidebar.button("Logout"):
@@ -92,7 +94,6 @@ def save_tasks(uid, tasks):
 # =====================================================
 if section == "➕ Add Task":
     st.header("➕ Add Task")
-
     title = st.text_input("Task Title")
     subject = st.text_input("Subject")
     deadline = st.date_input("Deadline")
@@ -100,28 +101,26 @@ if section == "➕ Add Task":
     importance = st.slider("Importance", 1, 5, 3)
     workload = st.slider("Workload", 1, 10, 5)
 
-    if st.button("Add Task"):
-        if title.strip():
-            tasks = get_tasks(user_id)
-            tasks.append({
-                "title": title,
-                "subject": subject,
-                "deadline": str(deadline),
-                "difficulty": difficulty,
-                "importance": importance,
-                "workload": workload,
-                "done": False
-            })
-            save_tasks(user_id, tasks)
-            st.success("Task saved")
-            st.rerun()
+    if st.button("Add Task") and title.strip():
+        tasks = get_tasks(user_id)
+        tasks.append({
+            "title": title,
+            "subject": subject,
+            "deadline": str(deadline),
+            "difficulty": difficulty,
+            "importance": importance,
+            "workload": workload,
+            "done": False
+        })
+        save_tasks(user_id, tasks)
+        st.success("Task saved")
+        st.rerun()
 
 # =====================================================
 # ⏳ PENDING TASKS
 # =====================================================
 elif section == "⏳ Pending Tasks":
     st.header("⏳ Pending Tasks")
-
     tasks = get_tasks(user_id)
     for i, t in enumerate(tasks):
         if not t["done"]:
@@ -137,7 +136,6 @@ elif section == "⏳ Pending Tasks":
 # =====================================================
 elif section == "⭐ Priority Tasks":
     st.header("⭐ Priority Tasks")
-
     tasks = sorted(
         get_tasks(user_id),
         key=lambda x: x["importance"] + x["difficulty"] + x["workload"],
@@ -148,7 +146,7 @@ elif section == "⭐ Priority Tasks":
             st.info(f"{t['title']} → {t['subject']}")
 
 # =====================================================
-# 🧠 DAILY STUDY PLAN (START–END)
+# 🧠 DAILY STUDY PLAN
 # =====================================================
 elif section == "🧠 Daily Study Plan":
     st.header("🧠 Daily Study Planner (24-Hour)")
@@ -160,23 +158,16 @@ elif section == "🧠 Daily Study Plan":
 
     st.subheader("Add Obstacle")
     day = st.selectbox("Day", DAYS)
-    start = st.number_input("Start Hour (0–23)", 0, 23)
-    end = st.number_input("End Hour (1–24)", 1, 24)
+    start = st.number_input("Start Hour", 0, 23)
+    end = st.number_input("End Hour", 1, 24)
     label = st.text_input("Obstacle Name")
 
     if st.button("Add Obstacle"):
-        user_obs.append({
-            "day": day,
-            "start": start,
-            "end": end,
-            "label": label
-        })
+        user_obs.append({"day": day, "start": start, "end": end, "label": label})
         obstacles_db[user_id] = user_obs
         save_json(OBSTACLE_FILE, obstacles_db)
-        st.success("Obstacle saved")
+        st.success("Obstacle added")
         st.rerun()
-
-    st.subheader("Weekly Planner")
 
     for h in HOURS:
         cols = st.columns(len(DAYS)+1)
@@ -187,43 +178,58 @@ elif section == "🧠 Daily Study Plan":
                 if o["day"] == d and o["start"] <= h < o["end"]:
                     block = o["label"]
             with cols[i+1]:
-                if block:
-                    st.warning(block)
-                else:
-                    st.success("FREE")
-
-    if st.button("Reset Planner"):
-        obstacles_db[user_id] = []
-        save_json(OBSTACLE_FILE, obstacles_db)
-        st.rerun()
+                st.warning(block) if block else st.success("FREE")
 
 # =====================================================
-# 📘 STUDY HELP (SHARED NOTES)
+# 📘 STUDY HELP (DOCUMENT UPLOAD)
 # =====================================================
 elif section == "📘 Study Help":
-    st.header("📘 Study Help (Shared)")
+    st.header("📘 Study Help (Upload Once – Use Forever)")
 
-    topic = st.text_input("Topic")
-    notes = st.text_area("Paste Notes (saved once for everyone)")
+    topic = st.text_input("Topic / Chapter Name")
 
-    if st.button("Save Notes"):
-        if topic.strip() and notes.strip():
-            kb_db[topic.lower()] = notes
+    tab1, tab2, tab3 = st.tabs(["📄 PDF", "🖼 Image", "✍ Text"])
+
+    extracted_text = ""
+
+    with tab1:
+        pdf = st.file_uploader("Upload PDF", type=["pdf"])
+        if pdf:
+            reader = PdfReader(pdf)
+            for page in reader.pages:
+                extracted_text += page.extract_text() or ""
+
+    with tab2:
+        img = st.file_uploader("Upload Image", type=["png","jpg","jpeg"])
+        if img:
+            image = Image.open(img)
+            st.image(image, caption="Uploaded Image")
+            try:
+                extracted_text += pytesseract.image_to_string(image)
+            except:
+                st.warning("Tesseract OCR not installed")
+
+    with tab3:
+        extracted_text += st.text_area("Paste notes manually")
+
+    if st.button("Save to Knowledge Base"):
+        if topic.strip() and extracted_text.strip():
+            kb_db[topic.lower()] = extracted_text
             save_json(KB_FILE, kb_db)
-            st.success("Saved globally")
+            st.success("Saved for all users")
 
     st.divider()
 
-    q = st.text_input("Search Topic")
-    if q.lower() in kb_db:
+    query = st.text_input("Search Topic")
+    if query.lower() in kb_db:
         st.success("Main Content")
-        st.write(kb_db[q.lower()])
+        st.write(kb_db[query.lower()])
         st.info("Explanation")
         st.write(
-            "• Understand concept\n"
-            "• Apply formula\n"
-            "• Practice examples\n"
-            "• Revise regularly"
+            "• Read carefully\n"
+            "• Understand concepts\n"
+            "• Apply formulas\n"
+            "• Practice examples"
         )
 
 # =====================================================
@@ -233,19 +239,16 @@ elif section == "📩 Recommendations":
     st.header("📩 Recommendations")
 
     msg = st.text_area("Send recommendation to owner")
-
-    if st.button("Send"):
-        if msg.strip():
-            recs_db.append({
-                "from": user_id,
-                "msg": msg,
-                "time": datetime.now().isoformat()
-            })
-            save_json(REC_FILE, recs_db)
-            st.success("Sent")
+    if st.button("Send") and msg.strip():
+        recs_db.append({
+            "from": user_id,
+            "msg": msg,
+            "time": datetime.now().isoformat()
+        })
+        save_json(REC_FILE, recs_db)
+        st.success("Sent")
 
     if user_id == "proto":
-        st.subheader("Owner Inbox")
         pwd = st.text_input("Owner Password", type="password")
         if pwd == "1357924680proto":
             for r in recs_db[::-1]:
