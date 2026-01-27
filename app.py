@@ -629,21 +629,4 @@ Big job → Radial drilling
 """)
 
 
-# =========================
-# Recommendations
-# =========================
-elif section == "📩 Recommendations":
-    st.header("📩 Recommendations")
-    msg = st.text_area("Send recommendation to owner")
-    if st.button("Send") and msg.strip():
-        recs_db.append({"from": user_id,"msg": msg,"time": datetime.now().isoformat()})
-        save_json(REC_FILE, recs_db)
-        st.success("Sent")
-
-    if user_id == "proto":
-        pwd = st.text_input("Owner Password", type="password")
-        if pwd == "1357924680proto":
-            for r in recs_db[::-1]:
-                st.info(f"{r['from']} → {r['msg']}")
-
 
