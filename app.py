@@ -6,23 +6,7 @@ from datetime import datetime
 st.set_page_config("Personal Study Assistant", layout="wide")
 
 # =====================================================
-# OPTIONAL LIBRARIES (SAFE IMPORTS)
-# =====================================================
-try:
-    from PyPDF2 import PdfReader
-    PDF_AVAILABLE = True
-except:
-    PDF_AVAILABLE = False
-
-try:
-    from PIL import Image
-    import pytesseract
-    OCR_AVAILABLE = True
-except:
-    OCR_AVAILABLE = False
-
-# =====================================================
-# SESSION LOGIN (FIXED USER ID)
+# USER LOGIN
 # =====================================================
 if "user_id" not in st.session_state:
     st.session_state.user_id = None
@@ -30,13 +14,13 @@ if "user_id" not in st.session_state:
 st.sidebar.title("👤 Login")
 
 if st.session_state.user_id is None:
-    temp_id = st.sidebar.text_input("Enter User ID")
+    uid = st.sidebar.text_input("Enter User ID")
     if st.sidebar.button("Login"):
-        if temp_id.strip():
-            st.session_state.user_id = temp_id.strip()
+        if uid.strip():
+            st.session_state.user_id = uid.strip()
             st.rerun()
 else:
-    st.sidebar.success(f"Logged in as: {st.session_state.user_id}")
+    st.sidebar.success(f"Logged in as {st.session_state.user_id}")
     if st.sidebar.button("Logout"):
         st.session_state.user_id = None
         st.rerun()
@@ -47,7 +31,7 @@ if st.session_state.user_id is None:
 user_id = st.session_state.user_id
 
 # =====================================================
-# JSON HELPERS
+# FILE HELPERS
 # =====================================================
 def load_json(file, default):
     if not os.path.exists(file):
@@ -63,37 +47,9 @@ def save_json(file, data):
     with open(file, "w") as f:
         json.dump(data, f, indent=4)
 
-# =====================================================
-# FILES
-# =====================================================
 TASK_FILE = "tasks_data.json"
-OBSTACLE_FILE = "obstacles.json"
-REC_FILE = "recommendations.json"
-KB_FILE = "knowledge_base.json"
-
 tasks_db = load_json(TASK_FILE, {})
-obstacles_db = load_json(OBSTACLE_FILE, {})
-recs_db = load_json(REC_FILE, [])
-kb_db = load_json(KB_FILE, {})
 
-# =====================================================
-# SIDEBAR SECTIONS
-# =====================================================
-section = st.sidebar.radio(
-    "Sections",
-    [
-        "➕ Add Task",
-        "⏳ Pending Tasks",
-        "⭐ Priority Tasks",
-        "🧠 Daily Study Plan",
-        "📘 Study Help",
-        "📩 Recommendations"
-    ]
-)
-
-# =====================================================
-# TASK HELPERS
-# =====================================================
 def get_tasks(uid):
     return tasks_db.get(uid, [])
 
@@ -102,17 +58,28 @@ def save_tasks(uid, tasks):
     save_json(TASK_FILE, tasks_db)
 
 # =====================================================
-# ➕ ADD TASK
+# MENU
+# =====================================================
+section = st.sidebar.radio(
+    "Sections",
+    [
+        "➕ Add Task",
+        "⏳ Pending Tasks",
+        "⭐ Priority Tasks",
+        "📚 QB"
+    ]
+)
+
+# =====================================================
+# ADD TASK
 # =====================================================
 if section == "➕ Add Task":
     st.header("➕ Add Task")
-
-    title = st.text_input("Task Title")
+    title = st.text_input("Task Name")
     subject = st.text_input("Subject")
     deadline = st.date_input("Deadline")
     difficulty = st.slider("Difficulty", 1, 5, 3)
     importance = st.slider("Importance", 1, 5, 3)
-    workload = st.slider("Workload", 1, 10, 5)
 
     if st.button("Add Task") and title.strip():
         tasks = get_tasks(user_id)
@@ -122,38 +89,34 @@ if section == "➕ Add Task":
             "deadline": str(deadline),
             "difficulty": difficulty,
             "importance": importance,
-            "workload": workload,
             "done": False
         })
         save_tasks(user_id, tasks)
-        st.success("Task saved")
+        st.success("Task added")
         st.rerun()
 
 # =====================================================
-# ⏳ PENDING TASKS
+# PENDING TASKS
 # =====================================================
 elif section == "⏳ Pending Tasks":
     st.header("⏳ Pending Tasks")
-
-    tasks = get_tasks(user_id)
-    for i, t in enumerate(tasks):
+    for i, t in enumerate(get_tasks(user_id)):
         if not t["done"]:
-            cols = st.columns([4, 1])
-            cols[0].markdown(f"**{t['title']}** ({t['subject']})")
-            if cols[1].checkbox("Done", key=f"d{i}"):
+            c1, c2 = st.columns([4,1])
+            c1.write(f"**{t['title']}** ({t['subject']})")
+            if c2.checkbox("Done", key=i):
                 t["done"] = True
-                save_tasks(user_id, tasks)
+                save_tasks(user_id, get_tasks(user_id))
                 st.rerun()
 
 # =====================================================
-# ⭐ PRIORITY TASKS
+# PRIORITY TASKS
 # =====================================================
 elif section == "⭐ Priority Tasks":
     st.header("⭐ Priority Tasks")
-
     tasks = sorted(
         get_tasks(user_id),
-        key=lambda x: x["importance"] + x["difficulty"] + x["workload"],
+        key=lambda x: x["importance"] + x["difficulty"],
         reverse=True
     )
     for t in tasks:
@@ -161,122 +124,292 @@ elif section == "⭐ Priority Tasks":
             st.info(f"{t['title']} → {t['subject']}")
 
 # =====================================================
-# 🧠 DAILY STUDY PLAN
+# 📚 QB – FULL EXPLAINED QUESTION BANK
 # =====================================================
-elif section == "🧠 Daily Study Plan":
-    st.header("🧠 Daily Study Planner (24-Hour)")
+elif section == "📚 QB":
+    st.header("📚 Question Bank – Explained Learning")
 
-    DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    HOURS = list(range(24))
-    user_obs = obstacles_db.get(user_id, [])
+    # =======================
+    # EGM SECTION
+    # =======================
+    st.subheader("⚙️ EGM – Engineering Mechanics")
 
-    st.subheader("Add Obstacle")
-    day = st.selectbox("Day", DAYS)
-    start = st.number_input("Start Hour (0–23)", 0, 23)
-    end = st.number_input("End Hour (1–24)", 1, 24)
-    label = st.text_input("Obstacle Name")
+    egm = st.slider("EGM Topics", 1, 13, 1)
 
-    if st.button("Add Obstacle"):
-        user_obs.append({
-            "day": day,
-            "start": start,
-            "end": end,
-            "label": label
-        })
-        obstacles_db[user_id] = user_obs
-        save_json(OBSTACLE_FILE, obstacles_db)
-        st.success("Obstacle added")
-        st.rerun()
+    if egm >= 1:
+        st.markdown("""
+### 🟢 1️⃣ Mechanical Advantage & Velocity Ratio
 
-    st.subheader("Weekly Planner")
+**Mechanical Advantage (MA):**  
+It tells us how much a machine helps us.  
+If a small effort lifts a heavy load, the machine is good.
 
-    for h in HOURS:
-        cols = st.columns(len(DAYS) + 1)
-        cols[0].markdown(f"**{h:02d}:00**")
-        for i, d in enumerate(DAYS):
-            block = None
-            for o in user_obs:
-                if o["day"] == d and o["start"] <= h < o["end"]:
-                    block = o["label"]
-            with cols[i + 1]:
-                if block:
-                    st.warning(block)
-                else:
-                    st.success("FREE")
+**Formula:**  
+MA = Load ÷ Effort  
 
-# =====================================================
-# 📘 STUDY HELP (SAFE: PDF + IMAGE + TEXT)
-# =====================================================
-elif section == "📘 Study Help":
-    st.header("📘 Study Help (Upload Once, Use Forever)")
+🧠 **Memory Trick:**  
+👉 *Machine Advantage = Load ÷ Effort*
 
-    topic = st.text_input("Topic / Chapter Name")
+**Velocity Ratio (VR):**  
+It compares how much distance the effort moves to how much the load moves.
 
-    tabs = st.tabs(["📄 PDF", "🖼 Image", "✍ Text"])
-    extracted_text = ""
+**Formula:**  
+VR = Distance moved by effort ÷ Distance moved by load  
 
-    with tabs[0]:
-        pdf = st.file_uploader("Upload PDF", type=["pdf"])
-        if pdf:
-            if PDF_AVAILABLE:
-                reader = PdfReader(pdf)
-                for page in reader.pages:
-                    extracted_text += page.extract_text() or ""
-            else:
-                st.warning("PDF support not available on this system.")
+🧠 **Memory Trick:**  
+👉 *VR = Distance ratio*
+""")
 
-    with tabs[1]:
-        img = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
-        if img:
-            if OCR_AVAILABLE:
-                image = Image.open(img)
-                st.image(image, caption="Uploaded Image")
-                extracted_text += pytesseract.image_to_string(image)
-            else:
-                st.warning("Image OCR not available. Use PDF or Text.")
+    if egm >= 2:
+        st.markdown("""
+### 🟢 2️⃣ Moment of Force
 
-    with tabs[2]:
-        extracted_text += st.text_area("Paste notes manually")
+Moment is the turning effect of a force.
 
-    if st.button("Save Notes"):
-        if topic.strip() and extracted_text.strip():
-            kb_db[topic.lower()] = extracted_text
-            save_json(KB_FILE, kb_db)
-            st.success("Saved for all users")
+**Example:**  
+Opening a door is easier when you push away from the hinge.
 
+**Formula:**  
+Moment = Force × Distance  
+
+**SI Unit:** Newton-meter (Nm)
+
+🧠 **Memory Trick:**  
+👉 *Force × Distance = Moment*
+""")
+
+    if egm >= 3:
+        st.markdown("""
+### 🟢 3️⃣ Varignon’s Theorem
+
+If many forces act on a body, the total turning effect is equal to the sum of turning effects of each force.
+
+🧠 **Memory Trick:**  
+👉 *Total moment = Sum of all moments*
+""")
+
+    if egm >= 4:
+        st.markdown("""
+### 🟢 4️⃣ Equilibrium of Forces
+
+When forces balance each other, the body does not move.
+
+**Condition:**  
+Resultant force = 0  
+
+🧠 **Memory Trick:**  
+👉 *Balanced forces = No motion*
+""")
+
+    if egm >= 5:
+        st.markdown("""
+### 🟢 5️⃣ Resultant and Equilibrant
+
+**Resultant Force:**  
+Single force that replaces all forces.
+
+**Equilibrant Force:**  
+Force that balances the resultant.
+
+👉 Same magnitude, opposite direction
+
+🧠 **Memory Trick:**  
+👉 *Equilibrant = Resultant but opposite*
+""")
+
+    if egm >= 6:
+        st.markdown("""
+### 🟢 6️⃣ Lami’s Theorem
+
+Used when:
+- Exactly 3 forces
+- Forces meet at one point
+- Body is at rest
+
+🧠 **Memory Trick:**  
+👉 *3 forces + rest = Lami*
+""")
+
+    if egm >= 7:
+        st.markdown("""
+### 🟡 7️⃣ Differential Axle & Wheel (Efficiency)
+
+Steps:
+1. Find Velocity Ratio
+2. Find Mechanical Advantage
+3. Calculate efficiency
+
+**Formula:**  
+Efficiency = (MA ÷ VR) × 100  
+
+🧠 **Memory Trick:**  
+👉 *Efficiency = MA ÷ VR*
+""")
+
+    if egm >= 8:
+        st.markdown("""
+### 🟡 8️⃣ Differential Pulley Block
+
+Steps:
+1. Find VR using teeth numbers
+2. Use efficiency formula
+3. Calculate effort
+
+🧠 **Memory Trick:**  
+👉 *VR first → MA → Effort*
+""")
+
+    if egm >= 9:
+        st.markdown("""
+### 🟡 9️⃣ Force System & Classification
+
+When two or more forces act on a body.
+
+Types:
+- Coplanar → same plane
+- Non-coplanar → different planes
+
+🧠 **Memory Trick:**  
+👉 *Plane = Coplanar*
+""")
+
+    if egm >= 10:
+        st.markdown("""
+### 🟠 🔟 Resultant by Analytical Method
+
+Steps:
+1. Resolve forces
+2. Add components
+3. Find magnitude & direction
+
+🧠 **Memory Trick:**  
+👉 *Resolve → Add → Resultant*
+""")
+
+    if egm >= 11:
+        st.markdown("""
+### 🟠 1️⃣1️⃣ Two Forces at Angle
+
+Used when two forces act at an angle.
+
+**Method:** Cosine Rule
+
+🧠 **Memory Trick:**  
+👉 *Angle given = Cosine rule*
+""")
+
+    if egm >= 12:
+        st.markdown("""
+### 🔴 1️⃣2️⃣ Hanging Body using Lami’s Theorem
+
+Steps:
+1. Draw force triangle
+2. Find angles
+3. Apply Lami’s theorem
+
+🧠 **Memory Trick:**  
+👉 *Draw triangle → Apply Lami*
+""")
+
+    if egm >= 13:
+        st.markdown("""
+### 🔴 1️⃣3️⃣ Reaction by Planes
+
+When a body touches a surface, the surface applies a reaction force.
+
+🧠 **Memory Trick:**  
+👉 *Contact surface = Reaction*
+""")
+
+    # =======================
+    # MPR SECTION
+    # =======================
     st.divider()
+    st.subheader("🛠️ MPR – Manufacturing Process")
 
-    query = st.text_input("Search Topic")
-    if query.lower() in kb_db:
-        st.success("Main Content")
-        st.write(kb_db[query.lower()])
-        st.info("Explanation")
-        st.write(
-            "• Understand concepts\n"
-            "• Apply formulas\n"
-            "• Practice examples\n"
-            "• Revise regularly"
-        )
+    mpr = st.slider("MPR Topics", 1, 7, 1)
 
-# =====================================================
-# 📩 RECOMMENDATIONS
-# =====================================================
-elif section == "📩 Recommendations":
-    st.header("📩 Recommendations")
+    if mpr >= 1:
+        st.markdown("""
+### 🔹 Thread Cutting on Lathe Machine
 
-    msg = st.text_area("Send recommendation to owner")
+Thread cutting is the process of making threads on a rotating workpiece using a single-point cutting tool.
 
-    if st.button("Send") and msg.strip():
-        recs_db.append({
-            "from": user_id,
-            "msg": msg,
-            "time": datetime.now().isoformat()
-        })
-        save_json(REC_FILE, recs_db)
-        st.success("Sent")
+🧠 **Steps:**
+- Workpiece rotates
+- Tool cuts
+- Threads form
 
-    if user_id == "proto":
-        pwd = st.text_input("Owner Password", type="password")
-        if pwd == "1357924680proto":
-            for r in recs_db[::-1]:
-                st.info(f"{r['from']} → {r['msg']}")
+🧠 **Memory Trick:**  
+👉 *Rotate → Cut → Thread*
+""")
+
+    if mpr >= 2:
+        st.markdown("""
+### 🔹 Gang Milling
+
+More than one cutter mounted on same arbor.
+
+Used for high production.
+
+🧠 **Memory Trick:**  
+👉 *Many cutters → One job*
+""")
+
+    if mpr >= 3:
+        st.markdown("""
+### 🔹 Column and Knee Type Milling Machine
+
+- Base → Supports machine
+- Column → Backbone
+- Knee → Moves up & down
+
+🧠 **Memory Trick:**  
+👉 *Base – Column – Knee*
+""")
+
+    if mpr >= 4:
+        st.markdown("""
+### 🔹 Types of Chip Formation
+
+1. Continuous → Soft metals  
+2. Discontinuous → Cast iron  
+3. Built-up edge → Sticky metals
+
+🧠 **Memory Trick:**  
+👉 *Soft = Continuous*
+""")
+
+    if mpr >= 5:
+        st.markdown("""
+### 🔹 Pattern Colour Coding
+
+- Red → Machined
+- Black → Not machined
+
+🧠 **Memory Trick:**  
+👉 *Red = Cut*
+""")
+
+    if mpr >= 6:
+        st.markdown("""
+### 🔹 Machining Time (Drilling)
+
+**Formula:**  
+T = L ÷ (N × f)
+
+🧠 **Memory Trick:**  
+👉 *Speed → Feed → Time*
+""")
+
+    if mpr >= 7:
+        st.markdown("""
+### 🔹 Radial Drilling Machine
+
+Used for large and heavy jobs.
+
+🧠 **Memory Trick:**  
+👉 *Big job = Radial*
+""")
+
+    st.success("🎯 Use this section for fast exam revision")
