@@ -86,6 +86,7 @@ section = st.sidebar.radio(
         "⭐ Priority Tasks",
         "🧠 Daily Study Plan",
         "📘 Study Help",
+        "📚 QB",
         "📩 Recommendations"
     ]
 )
@@ -237,6 +238,397 @@ elif section == "📘 Study Help":
         st.info("Explanation")
         st.write("• Read carefully\n• Understand concepts\n• Apply formulas\n• Practice examples")
 
+elif section == "📚 QB":
+    import streamlit as st
+
+    st.title("📚 Question Bank (QB)")
+    st.subheader("📘 Engineering Mechanics (EGM)")
+    st.markdown("Easy explanations + memory tricks for fast exam revision")
+
+    st.markdown("""
+## 🟢 1️⃣ Mechanical Advantage & Velocity Ratio
+
+### 🔹 Mechanical Advantage (MA)
+**Simple meaning:**  
+Mechanical Advantage tells us how much a machine helps us.  
+If a small effort lifts a heavy load, the machine is good.
+
+**Formula:**  
+MA = Load / Effort  
+
+🧠 **Memory Trick:**  
+👉 *Machine Advantage = Load ÷ Effort*
+
+---
+
+### 🔹 Velocity Ratio (VR)
+**Simple meaning:**  
+It compares the distance moved by effort to the distance moved by load.
+
+**Formula:**  
+VR = Distance moved by effort / Distance moved by load  
+
+🧠 **Memory Trick:**  
+👉 *VR = Distance ratio*
+
+---
+
+## 🟢 2️⃣ Moment of Force
+
+**Meaning:**  
+Moment is the turning effect of a force.
+
+**Example:**  
+Opening a door is easier when pushing far from the hinge.
+
+**Formula:**  
+Moment = Force × Distance  
+
+**SI Unit:**  
+Newton-meter (Nm)
+
+🧠 **Memory Trick:**  
+👉 *Force × Distance = Moment*
+
+---
+
+## 🟢 3️⃣ Varignon’s Theorem
+
+**Easy meaning:**  
+When many forces act on a body, the total turning effect equals the sum of the turning effects of each force.
+
+🧠 **Memory Trick:**  
+👉 *Total moment = sum of all moments*
+
+---
+
+## 🟢 4️⃣ Equilibrium of Forces
+
+**Simple meaning:**  
+When forces balance each other, the object does not move.
+
+**Example:**  
+A book lying on a table.
+
+**Condition:**  
+Resultant force = 0
+
+🧠 **Memory Trick:**  
+👉 *Balanced forces = no motion*
+
+---
+
+## 🟢 5️⃣ Resultant Force vs Equilibrant Force
+
+### 🔹 Resultant Force
+A single force that replaces all forces acting on a body.
+
+### 🔹 Equilibrant Force
+A force that balances the resultant.  
+Same magnitude, opposite direction.
+
+🧠 **Memory Trick:**  
+👉 *Equilibrant = Resultant but opposite*
+
+---
+
+## 🟢 6️⃣ Lami’s Theorem
+
+### 🔹 Used when:
+• Exactly three forces  
+• Forces meet at one point  
+• Body is at rest  
+
+### 🔹 Statement (easy)
+Each force is proportional to the sine of the angle between the other two forces.
+
+🧠 **Memory Trick:**  
+👉 *3 forces + rest = Lami*
+
+---
+
+## 🟡 7️⃣ Differential Axle & Wheel (Efficiency)
+
+### 🔹 Steps:
+1. Find Velocity Ratio (VR)  
+2. Find Mechanical Advantage (MA)  
+3. Efficiency = (MA / VR) × 100  
+
+🧠 **Memory Trick:**  
+👉 *Efficiency = MA ÷ VR × 100*
+
+---
+
+## 🟡 8️⃣ Differential Pulley Block (Effort)
+
+### 🔹 Steps:
+1. Find VR using number of teeth  
+2. Use efficiency formula  
+3. Calculate effort  
+
+🧠 **Memory Trick:**  
+👉 *VR first → MA → Effort*
+
+---
+
+## 🟡 9️⃣ Force System & Classification
+
+### 🔹 Force System:
+Two or more forces acting on a body.
+
+### 🔹 Types:
+• Coplanar → Forces in one plane  
+• Non-coplanar → Forces in different planes  
+
+🧠 **Memory Trick:**  
+👉 *Plane = Coplanar*
+
+---
+
+## 🟠 🔟 Resultant by Analytical Method
+
+### 🔹 Steps:
+1. Resolve forces into horizontal & vertical components  
+2. Add components  
+3. Find magnitude and direction  
+
+🧠 **Memory Trick:**  
+👉 *Resolve → Add → Resultant*
+
+---
+
+## 🟠 1️⃣1️⃣ Two Forces Acting at an Angle
+
+### 🔹 Method Used:
+Cosine rule is applied to find the resultant force.
+
+🧠 **Memory Trick:**  
+👉 *Angle given → Cosine rule*
+
+---
+
+## 🔴 1️⃣2️⃣ Hanging Body Using Lami’s Theorem
+
+### 🔹 Situation:
+A body hangs in equilibrium using strings at angles.
+
+### 🔹 Steps:
+1. Draw clear force diagram  
+2. Find all angles  
+3. Apply Lami’s theorem  
+
+🧠 **Memory Trick:**  
+👉 *Draw triangle → Apply Lami*
+
+---
+
+## 🔴 1️⃣3️⃣ Reaction by Planes
+
+### 🔹 What happens?
+When a body touches two surfaces, both surfaces apply reaction forces.
+
+### 🔹 Steps:
+1. Draw diagram  
+2. Resolve forces  
+3. Apply equilibrium conditions  
+
+🧠 **Memory Trick:**  
+👉 *Contact surface = reaction force*
+
+---
+
+## 🎯 SUPER FAST REVISION
+
+Before exam, remember just this 👇  
+**Definitions → Machines → Resultant → Lami → Planes**
+""")
+
+st.subheader("📘 Manufacturing Processes (MPR) – Question Bank")
+st.markdown("Easy explanations + memory tricks for fast exam revision")
+
+st.markdown("""
+## 🔹 Q2 (a) Thread Cutting Operation on Lathe Machine
+
+### 🔧 What is Thread Cutting?
+Thread cutting is the process of producing threads (screw shape) on a rotating workpiece using a **single-point cutting tool** on a lathe machine.
+
+### 🧠 Working (Easy Steps)
+1. Workpiece is fixed in the chuck and rotates  
+2. Thread cutting tool is fixed on tool post  
+3. Tool moves slowly parallel to the axis  
+4. Threads are formed on the workpiece  
+5. Tailstock supports long workpieces  
+
+🧠 **Memory Trick:**  
+👉 *Rotate → Tool cuts → Threads form*
+
+✍️ **Exam Writing Tip (4–6 Marks):**
+- Draw neat labelled sketch  
+- Write points:
+  - Chuck holds workpiece  
+  - Tool fixed in tool post  
+  - Tool cuts during rotation  
+  - Tailstock supports job  
+
+---
+
+## 🔹 Q2 (b) Gang Milling
+
+### 🔧 What is Gang Milling?
+Gang milling is a milling operation in which **two or more cutters** are mounted on the **same arbor** to machine many surfaces at the same time.
+
+### 🧠 Easy Explanation
+- Multiple cutters rotate together  
+- All cutters cut simultaneously  
+- Used for **high production**  
+- Cutters may be same or different sizes  
+
+🧠 **Memory Trick:**  
+👉 *Many cutters → One job → Fast work*
+
+✍️ **Exam Tip:**
+- Multiple cutters mounted  
+- Cut simultaneously  
+- High production rate  
+- Used in mass production  
+
+---
+
+## 🔹 Q2 (c) Column and Knee Type Milling Machine
+
+### 🔧 What is it?
+A milling machine where:
+- Column supports spindle  
+- Knee moves up and down to adjust height  
+
+### 🔹 Functions of Main Parts (VERY EASY)
+
+**1️⃣ Base**  
+- Supports whole machine  
+- Collects coolant  
+🧠 *Base = Support*
+
+**2️⃣ Column**  
+- Vertical structure  
+- Supports spindle & drive  
+🧠 *Column = Backbone*
+
+**3️⃣ Knee**  
+- Moves up and down  
+- Provides vertical movement  
+🧠 *Knee = Up & Down*
+
+**4️⃣ Table**  
+- Holds workpiece  
+- Moves job during machining  
+🧠 *Table = Holds job*
+
+✍️ **Exam Tip:**
+- Draw big neat sketch  
+- Label at least 6 parts  
+- Write one function each  
+
+---
+
+## 🔹 Q2 (d) Types of Chip Formation
+
+### 🔧 Chip Formation
+Chip formation is the way material is removed during machining.
+
+### 🔹 Types of Chips
+
+**1️⃣ Continuous Chip**
+- Long continuous chip  
+- Formed in soft materials (mild steel)  
+🧠 *Soft metal → Continuous chip*
+
+**2️⃣ Discontinuous Chip**
+- Chip breaks into small pieces  
+- Formed in cast iron, bronze  
+🧠 *Hard & brittle → Broken chip*
+
+**3️⃣ Continuous Chip with Built-Up Edge (BUE)**
+- Material sticks to tool edge  
+🧠 *Sticky metal → BUE*
+
+✍️ **Exam Tip:**
+- Name all 3 types  
+- Explain any one with sketch  
+
+---
+
+## 🔹 Q2 (e) Pattern Colour Coding
+
+### 🔧 Why Colour Coding?
+To identify machined and unmachined surfaces in patterns.
+
+### 🎨 Colour Meanings
+
+- **Black** → Not machined  
+- **Red** → To be machined  
+- **Yellow** → Core print  
+- **No colour** → Parting surface  
+- **Red strips on yellow** → Base plate  
+- **Black strips on yellow** → Support  
+
+🧠 **Memory Trick:**  
+👉 *Red = Cut, Black = No cut*
+
+---
+
+## 🔹 Q2 (f) Machining Time (Drilling)
+
+### 🔧 What is Machining Time?
+Time required to complete drilling operation.
+
+### 🧮 Formula (IMPORTANT)
+T = L ÷ (N × f)
+
+Where:  
+- L = Length of hole (mm)  
+- N = Speed (rpm)  
+- f = Feed (mm/rev)  
+
+### 🧠 Steps
+1. Find spindle speed (N)  
+2. Substitute values  
+3. Answer in minutes  
+
+🧠 **Memory Trick:**  
+👉 *Speed → Feed → Time*
+
+---
+
+## 🔹 Q2 (g) Radial Drilling Machine
+
+### 🔧 What is Radial Drilling Machine?
+A drilling machine where the drill head moves radially, suitable for **large and heavy workpieces**.
+
+### 🔹 Main Parts & Functions
+
+**1️⃣ Base** – Supports machine and job  
+**2️⃣ Column** – Supports radial arm  
+**3️⃣ Radial Arm** – Moves drill head left/right  
+**4️⃣ Drill Head** – Holds motor & spindle  
+**5️⃣ Spindle** – Rotates drill  
+
+🧠 **Memory Trick:**  
+👉 *Big job → Radial drill*
+
+---
+
+## 🎯 FINAL SUPER-FAST REVISION (1 Minute)
+
+Lathe → Thread cutting  
+Many cutters → Gang milling  
+Knee → Vertical movement  
+Broken chip → Cast iron  
+Red → Machining  
+Time = L ÷ (N × f)  
+Big job → Radial drilling
+""")
+
+
 # =========================
 # Recommendations
 # =========================
@@ -254,302 +646,4 @@ elif section == "📩 Recommendations":
             for r in recs_db[::-1]:
                 st.info(f"{r['from']} → {r['msg']}")
 
-# =====================================================
-# 📚 QB – QUESTION BANK (FULL NOTES)
-# =====================================================
-elif section == "📚 QB":
-    st.header("📚 Question Bank – Explained for Learning")
-    st.caption("Use sliders to revise topics quickly with full explanations")
-
-    # =================================================
-    # EGM SECTION
-    # =================================================
-    st.subheader("⚙️ EGM – Engineering Mechanics")
-
-    egm = st.slider("EGM Topics", 1, 13, 1)
-
-    if egm >= 1:
-        st.markdown("""
-### 🟢 1️⃣ Mechanical Advantage & Velocity Ratio
-
-🔹 **Mechanical Advantage (MA)**  
-Mechanical Advantage tells us how much a machine helps us.  
-If a small effort is used to lift a heavy load, then the machine has a good mechanical advantage.
-
-**Formula:**  
-MA = Load ÷ Effort  
-
-🧠 **Memory Trick:**  
-👉 *Machine Advantage = Load ÷ Effort*
-
-🔹 **Velocity Ratio (VR)**  
-Velocity Ratio compares the distance moved by the effort to the distance moved by the load.
-
-**Formula:**  
-VR = Distance moved by effort ÷ Distance moved by load  
-
-🧠 **Memory Trick:**  
-👉 *VR = Distance ratio*
-""")
-
-    if egm >= 2:
-        st.markdown("""
-### 🟢 2️⃣ Moment of Force
-
-Moment of force is the turning effect of a force about a point or axis.
-
-**Example:**  
-When you open a door, you apply force away from the hinge, so the door opens easily.
-
-**Formula:**  
-Moment = Force × Distance  
-
-**SI Unit:** Newton-meter (Nm)
-
-🧠 **Memory Trick:**  
-👉 *Force × Distance = Moment*
-""")
-
-    if egm >= 3:
-        st.markdown("""
-### 🟢 3️⃣ Varignon’s Theorem
-
-Varignon’s theorem states that if multiple forces act on a body, then the total turning effect is equal to the sum of turning effects of individual forces.
-
-🧠 **Memory Trick:**  
-👉 *Total moment = Sum of all moments*
-""")
-
-    if egm >= 4:
-        st.markdown("""
-### 🟢 4️⃣ Equilibrium of Forces
-
-A body is said to be in equilibrium when all the forces acting on it balance each other.
-
-**Condition:**  
-Resultant force = 0  
-
-**Example:**  
-A book resting on a table.
-
-🧠 **Memory Trick:**  
-👉 *Balanced forces = No motion*
-""")
-
-    if egm >= 5:
-        st.markdown("""
-### 🟢 5️⃣ Resultant Force and Equilibrant Force
-
-🔹 **Resultant Force:**  
-A single force that has the same effect as all forces acting together.
-
-🔹 **Equilibrant Force:**  
-A force that balances the resultant force.  
-It is equal in magnitude but opposite in direction.
-
-🧠 **Memory Trick:**  
-👉 *Equilibrant = Resultant but opposite*
-""")
-
-    if egm >= 6:
-        st.markdown("""
-### 🟢 6️⃣ Lami’s Theorem
-
-Lami’s theorem is used when:
-- Exactly three forces act on a body
-- Forces meet at one point
-- Body is in equilibrium
-
-🧠 **Memory Trick:**  
-👉 *3 forces + rest = Lami*
-""")
-
-    if egm >= 7:
-        st.markdown("""
-### 🟡 7️⃣ Differential Axle & Wheel (Efficiency)
-
-Steps to find efficiency:
-1. Calculate Velocity Ratio (VR)
-2. Calculate Mechanical Advantage (MA)
-3. Apply efficiency formula
-
-**Formula:**  
-Efficiency = (MA ÷ VR) × 100  
-
-🧠 **Memory Trick:**  
-👉 *Efficiency = MA ÷ VR*
-""")
-
-    if egm >= 8:
-        st.markdown("""
-### 🟡 8️⃣ Differential Pulley Block (Effort)
-
-Steps:
-1. Find VR using number of teeth
-2. Find MA using efficiency
-3. Calculate effort required
-
-🧠 **Memory Trick:**  
-👉 *VR first → MA → Effort*
-""")
-
-    if egm >= 9:
-        st.markdown("""
-### 🟡 9️⃣ Force System & Classification
-
-A force system exists when two or more forces act on a body.
-
-Types:
-- Coplanar forces → Forces in same plane
-- Non-coplanar forces → Forces in different planes
-
-🧠 **Memory Trick:**  
-👉 *Plane = Coplanar*
-""")
-
-    if egm >= 10:
-        st.markdown("""
-### 🟠 🔟 Resultant by Analytical Method
-
-Steps:
-1. Resolve forces into horizontal and vertical components
-2. Add components
-3. Find resultant magnitude and direction
-
-🧠 **Memory Trick:**  
-👉 *Resolve → Add → Resultant*
-""")
-
-    if egm >= 11:
-        st.markdown("""
-### 🟠 1️⃣1️⃣ Two Forces at an Angle
-
-When two forces act at an angle, the resultant is found using the cosine rule.
-
-🧠 **Memory Trick:**  
-👉 *Angle given → Cosine rule*
-""")
-
-    if egm >= 12:
-        st.markdown("""
-### 🔴 1️⃣2️⃣ Hanging Body using Lami’s Theorem
-
-Steps:
-1. Draw clear force diagram
-2. Find all angles
-3. Apply Lami’s theorem
-
-🧠 **Memory Trick:**  
-👉 *Draw triangle → Apply Lami*
-""")
-
-    if egm >= 13:
-        st.markdown("""
-### 🔴 1️⃣3️⃣ Reaction by Planes
-
-When a body touches a surface, the surface applies a reaction force on the body.
-
-🧠 **Memory Trick:**  
-👉 *Contact surface = Reaction force*
-""")
-
-    # =================================================
-    # MPR SECTION
-    # =================================================
-    st.divider()
-    st.subheader("🛠️ MPR – Manufacturing Processes")
-
-    mpr = st.slider("MPR Topics", 1, 7, 1)
-
-    if mpr >= 1:
-        st.markdown("""
-### 🔹 Thread Cutting Operation on Lathe Machine
-
-Thread cutting is the process of producing screw threads on a rotating workpiece using a single-point cutting tool.
-
-**Working:**
-- Workpiece rotates in chuck
-- Tool moves parallel to axis
-- Threads are formed
-- Tailstock supports long workpiece
-
-🧠 **Memory Trick:**  
-👉 *Rotate → Tool cuts → Threads form*
-""")
-
-    if mpr >= 2:
-        st.markdown("""
-### 🔹 Gang Milling
-
-Gang milling is a milling operation in which more than one cutter is mounted on the same arbor to machine several surfaces at a time.
-
-Used for mass production.
-
-🧠 **Memory Trick:**  
-👉 *Many cutters → One job → Fast*
-""")
-
-    if mpr >= 3:
-        st.markdown("""
-### 🔹 Column and Knee Type Milling Machine
-
-Parts and functions:
-- Base → Supports whole machine
-- Column → Backbone, supports spindle
-- Knee → Moves up and down
-- Table → Holds workpiece
-
-🧠 **Memory Trick:**  
-👉 *Base – Column – Knee*
-""")
-
-    if mpr >= 4:
-        st.markdown("""
-### 🔹 Types of Chip Formation
-
-1. Continuous chip – soft metals
-2. Discontinuous chip – cast iron
-3. Built-up edge – sticky materials
-
-🧠 **Memory Trick:**  
-👉 *Soft metal → Continuous chip*
-""")
-
-    if mpr >= 5:
-        st.markdown("""
-### 🔹 Pattern Colour Coding
-
-Purpose: To indicate machined and unmachined surfaces.
-
-- Red → To be machined
-- Black → Not machined
-
-🧠 **Memory Trick:**  
-👉 *Red = Cut*
-""")
-
-    if mpr >= 6:
-        st.markdown("""
-### 🔹 Machining Time (Drilling)
-
-Machining time is the time required to complete drilling operation.
-
-**Formula:**  
-T = L ÷ (N × f)
-
-🧠 **Memory Trick:**  
-👉 *Speed → Feed → Time*
-""")
-
-    if mpr >= 7:
-        st.markdown("""
-### 🔹 Radial Drilling Machine
-
-Radial drilling machine is used for large and heavy workpieces where the drill head moves radially.
-
-🧠 **Memory Trick:**  
-👉 *Big job → Radial drill*
-""")
-
-    st.success("🎯 Use QB for fast revision before exams")
 
