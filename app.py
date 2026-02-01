@@ -212,35 +212,47 @@ elif section == "📖 Study Help":
 
     # ---------- PDF UPLOADER (ONLY ONE) ----------
     st.subheader("📄 Upload Study Notes (PDF)")
+st.subheader("Upload Study Material (PDF)")
 
-    uploaded_pdf = st.file_uploader(
-        "Upload PDF (text-based)",
-        type=["pdf"],
-        key="study_pdf"
-    )
+pdf_file = st.file_uploader(
+    "Upload a text-based PDF (simple English PDFs work best)",
+    type=["pdf"],
+    key="study_pdf"
+)
 
-    if uploaded_pdf is not None:
-        try:
-            from PyPDF2 import PdfReader
+if pdf_file is None:
+    st.info("📄 Please upload a PDF file to continue.")
+else:
+    st.success(f"✅ File uploaded: {pdf_file.name}")
 
-            reader = PdfReader(uploaded_pdf)
-            extracted_text = ""
+    # reset pointer (IMPORTANT for Streamlit Cloud)
+    pdf_file.seek(0)
 
-            for page in reader.pages:
-                extracted_text += page.extract_text() or ""
+    try:
+        from PyPDF2 import PdfReader
 
-            if extracted_text.strip():
-                knowledge_base.append(extracted_text)
+        reader = PdfReader(pdf_file)
+        extracted_text = ""
 
-                with open(KB_FILE, "w", encoding="utf-8") as f:
-                    json.dump(knowledge_base, f, indent=2)
+        for page in reader.pages:
+            text = page.extract_text()
+            if text:
+                extracted_text += text + "\n"
 
-                st.success("Notes saved to study database ✅")
-            else:
-                st.warning("PDF has no readable text.")
+        if extracted_text.strip() == "":
+            st.error("❌ PDF uploaded but no readable text found.")
+            st.warning("⚠️ Try a text-based PDF (not scanned images).")
+        else:
+            st.subheader("Extracted Content Preview")
+            st.text_area(
+                "PDF Text",
+                extracted_text[:3000],
+                height=250
+            )
 
-        except:
-            st.error("PDF reading not supported. Use text-based PDF.")
+    except Exception as e:
+        st.error("❌ Error while reading PDF.")
+        st.write(str(e))
 
     # ---------- QUESTION INPUT ----------
     st.subheader("🔍 Ask a Question")
