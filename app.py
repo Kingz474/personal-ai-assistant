@@ -194,82 +194,144 @@ elif section == "🧠 Daily Study Plan":
 # =========================
 # Study Help
 # =========================
-elif section == "📘 Study Help":
-    st.header("📘 Study Help (PDF/Image/Text)")
+elif section == "📖 Study Help":
+    import streamlit as st
+    import json
 
-    topic = st.text_input("Topic / Chapter Name")
-    tabs = st.tabs(["📄 PDF","🖼 Image","✍ Text"])
-    extracted_text = ""
+    st.title("📖 Study Help")
+    st.markdown("Ask questions from notes and get explained answers")
 
-    with tabs[0]:
-        pdf = st.file_uploader("Upload PDF", type=["pdf"])
-        if pdf:
-            if PDF_AVAILABLE:
-                reader = PdfReader(pdf)
-                for page in reader.pages:
-                    extracted_text += page.extract_text() or ""
+    KB_FILE = "knowledge_base.json"
+
+    # ---------- LOAD DATABASE ----------
+    try:
+        with open(KB_FILE, "r", encoding="utf-8") as f:
+            knowledge_base = json.load(f)
+    except:
+        knowledge_base = []
+
+    # ---------- PDF UPLOADER (ONLY ONE) ----------
+    st.subheader("📄 Upload Study Notes (PDF)")
+
+    uploaded_pdf = st.file_uploader(
+        "Upload PDF (text-based)",
+        type=["pdf"],
+        key="study_pdf"
+    )
+
+    if uploaded_pdf is not None:
+        try:
+            from PyPDF2 import PdfReader
+
+            reader = PdfReader(uploaded_pdf)
+            extracted_text = ""
+
+            for page in reader.pages:
+                extracted_text += page.extract_text() or ""
+
+            if extracted_text.strip():
+                knowledge_base.append(extracted_text)
+
+                with open(KB_FILE, "w", encoding="utf-8") as f:
+                    json.dump(knowledge_base, f, indent=2)
+
+                st.success("Notes saved to study database ✅")
             else:
-                st.warning("PDF support not available. Please install PyPDF2.")
+                st.warning("PDF has no readable text.")
 
-    with tabs[1]:
-        img = st.file_uploader("Upload Image", type=["jpg","png","jpeg"])
-        if img:
-            if OCR_AVAILABLE:
-                image = Image.open(img)
-                st.image(image, caption="Uploaded Image")
-                extracted_text += pytesseract.image_to_string(image)
-            else:
-                st.warning("Image OCR not available. Use PDF or Text.")
+        except:
+            st.error("PDF reading not supported. Use text-based PDF.")
 
-    with tabs[2]:
-        extracted_text += st.text_area("Paste notes manually")
+    # ---------- QUESTION INPUT ----------
+    st.subheader("🔍 Ask a Question")
 
-    if st.button("Save Notes"):
-        if topic.strip() and extracted_text.strip():
-            kb_db[topic.lower()] = extracted_text
-            save_json(KB_FILE, kb_db)
-            st.success("Saved for all users")
+    user_question = st.text_input(
+        "Ask about any topic from your notes",
+        placeholder="Example: What is Mechanical Advantage?"
+    )
+
+    if user_question:
+        found = False
+
+        for note in knowledge_base:
+            if user_question.lower() in note.lower():
+                found = True
+                st.markdown("### ✅ Answer from your notes")
+                st.write(note[:1500])  # limit output
+                break
+
+        if not found:
+            st.warning("No exact match found. Try different keywords.")
+
+
+elif section == "💡 Recommendation":
+    import streamlit as st
+    import json
+    from datetime import datetime
+
+    st.title("💡 Recommendations")
+
+    REC_FILE = "recommendations.json"
+    OWNER_ID = "proto"
+    OWNER_PASS = "1357924680proto"
+
+    # ---------- LOAD DATA ----------
+    try:
+        with open(REC_FILE, "r", encoding="utf-8") as f:
+            recommendations = json.load(f)
+    except:
+        recommendations = []
+
+    # ---------- USER SENDS RECOMMENDATION ----------
+    st.subheader("✍️ Send a Recommendation")
+
+    user_name = st.text_input("Your User ID", placeholder="Enter your ID")
+    rec_text = st.text_area(
+        "Your Recommendation",
+        placeholder="Write your suggestion here..."
+    )
+
+    if st.button("Send Recommendation"):
+        if user_name.strip() and rec_text.strip():
+            recommendations.append({
+                "from": user_name,
+                "text": rec_text,
+                "time": datetime.now().strftime("%d-%m-%Y %H:%M")
+            })
+
+            with open(REC_FILE, "w", encoding="utf-8") as f:
+                json.dump(recommendations, f, indent=2)
+
+            st.success("Recommendation sent successfully ✅")
+        else:
+            st.warning("Please enter User ID and recommendation.")
 
     st.divider()
-    query = st.text_input("Search Topic")
-    if query.lower() in kb_db:
-        st.success("Main Content")
-        st.write(kb_db[query.lower()])
-        st.info("Explanation")
-        st.write("• Read carefully\n• Understand concepts\n• Apply formulas\n• Practice examples")
 
-import streamlit as st
+    # ---------- OWNER LOGIN ----------
+    st.subheader("🔐 Owner Login")
 
-st.subheader("📄 Upload Study PDF")
+    owner_id = st.text_input("Owner ID")
+    owner_pass = st.text_input("Password", type="password")
 
-uploaded_pdf = st.file_uploader(
-    "Upload PDF notes",
-    type=["pdf"],
-    accept_multiple_files=False
-)
+    if st.button("Login as Owner"):
+        if owner_id == OWNER_ID and owner_pass == OWNER_PASS:
+            st.success("Welcome proto 👑")
 
-if uploaded_pdf is not None:
-    try:
-        from PyPDF2 import PdfReader
+            st.subheader("📥 All Recommendations")
 
-        reader = PdfReader(uploaded_pdf)
-        text = ""
-
-        for page in reader.pages:
-            text += page.extract_text() or ""
-
-        if text.strip() == "":
-            st.warning("PDF uploaded, but no readable text found.")
+            if recommendations:
+                for i, rec in enumerate(reversed(recommendations), start=1):
+                    st.markdown(f"""
+**#{i}**  
+👤 From: `{rec['from']}`  
+🕒 {rec['time']}  
+💬 {rec['text']}
+---
+""")
+            else:
+                st.info("No recommendations yet.")
         else:
-            st.success("PDF uploaded successfully ✅")
-            st.text_area(
-                "Extracted Text (read-only)",
-                text,
-                height=300
-            )
-
-    except Exception as e:
-        st.error("PDF uploaded but cannot be read on this system.")
-        st.info("Try a text-based PDF (not scanned images).")
+            st.error("Invalid owner credentials ❌")
 
 
