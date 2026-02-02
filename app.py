@@ -64,7 +64,14 @@ if "user" not in st.session_state:
     col1, col2 = st.columns(2)
 
     with col1:
-      
+        if st.button("Login"):
+    if username in users and users[username]["password"] == password:
+        st.session_state.user = username
+        st.rerun()
+
+            else:
+                st.error("Invalid credentials")
+
     with col2:
         if st.button("Register"):
             if username not in users:
