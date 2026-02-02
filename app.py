@@ -65,9 +65,10 @@ if "user" not in st.session_state:
 
     with col1:
         if st.button("Login"):
-            if username in users and users[username]["password"] == password:
-                st.session_state.user = username
-                st.experimental_rerun()
+    if username in users and users[username]["password"] == password:
+        st.session_state.user = username
+        st.rerun()
+
             else:
                 st.error("Invalid credentials")
 
