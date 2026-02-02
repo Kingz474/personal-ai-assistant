@@ -28,6 +28,19 @@ kb = load(KB, {})
 obstacles = load(OBST, {})
 ranking = load(RANK, {})
 
+USERS_FILE = "users.json"
+
+def load_users():
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_users(users):          # 👈 THIS MUST EXIST
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f, indent=4)
+
+users = load_users()
 # ===================== LOGIN / REGISTER =====================
 st.title("🤖 Personal AI Assistant")
 
