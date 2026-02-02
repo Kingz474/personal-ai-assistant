@@ -63,11 +63,6 @@ if "user" not in st.session_state:
 
     col1, col2 = st.columns(2)
 
-    with col1:
-      st.subheader("🔐 Login")
-
-username = st.text_input("Username")
-password = st.text_input("Password", type="password")
 
 if st.button("Login"):
     if username in users and users[username]["password"] == password:
