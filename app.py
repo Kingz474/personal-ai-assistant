@@ -75,6 +75,8 @@ if st.button("Login"):
         st.rerun()
     else:
         st.error("Invalid username or password")
+if "user" not in st.session_state:
+    st.stop()
 
     with col2:
         if st.button("Register"):
