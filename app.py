@@ -28,42 +28,57 @@ kb = load(KB, {})
 obstacles = load(OBST, {})
 ranking = load(RANK, {})
 
-st.title("🔐 Login / Register")
+# ---------- LOGIN ----------
+st.sidebar.title("🔐 Login")
 
 if "user" not in st.session_state:
-    login_tab, register_tab = st.tabs(["Login", "Register"])
+    st.markdown(
+        """
+        <style>
+        .login-box {
+            background: linear-gradient(135deg, #1f4037, #99f2c8);
+            padding: 40px;
+            border-radius: 15px;
+            width: 400px;
+            margin: auto;
+            margin-top: 100px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
-    with login_tab:
-        username = st.text_input("Username", key="login_user")
-        password = st.text_input("Password", type="password", key="login_pass")
+    st.markdown(
+        """
+        <div class="login-box">
+        <h2 style="text-align:center;color:white">🎮 Student AI Portal</h2>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-        if st.button("Login"):
-            if username in users and users[username]["password"] == password:
-                st.session_state.user = username
-                st.rerun()
-            else:
-                st.error("Invalid username or password")
+    username = st.text_input("👤 Username")
+    password = st.text_input("🔒 Password", type="password")
 
-    with register_tab:
-        new_user = st.text_input("New Username", key="reg_user")
-        new_pass = st.text_input("New Password", type="password", key="reg_pass")
+    col1, col2 = st.columns(2)
 
+    with col1:
+      
+    with col2:
         if st.button("Register"):
-            if new_user in users:
-                st.warning("User already exists")
-            elif new_user == "" or new_pass == "":
-                st.warning("Fill all fields")
+            if username not in users:
+                users[username] = {"password": password}
+                ranking[username] = {"score": 0, "tasks": 0}
+                tasks[username] = []
+                save(USERS, users)
+                save(RANK, ranking)
+                save(TASKS, tasks)
+                st.success("Account created. Login now.")
             else:
-                users[new_user] = {
-                    "password": new_pass,
-                    "tasks_completed": 0,
-                    "points": 0
-                }
-                save_users(users)   # 🔥 VERY IMPORTANT
-                st.success("Account created! Please login")
-if "user" not in st.session_state:
-    st.stop()
+                st.warning("User already exists")
 
+    st.stop()
 
 
 # ---------- MENU ----------
