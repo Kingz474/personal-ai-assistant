@@ -28,67 +28,66 @@ kb = load(KB, {})
 obstacles = load(OBST, {})
 ranking = load(RANK, {})
 
-U
-def load_users():
-    if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-def save_users(users):          # 👈 THIS MUST EXIST
-    with open(USERS_FILE, "w") as f:
-        json.dump(users, f, indent=4)
-
-users = load_users()
-
-# ===================== LOGIN / REGISTER =====================
-st.title("🤖 Personal AI Assistant")
+# ---------- LOGIN ----------
+st.sidebar.title("🔐 Login")
 
 if "user" not in st.session_state:
-    st.markdown("## 🔐 Login or Register")
+    st.markdown(
+        """
+        <style>
+        .login-box {
+            background: linear-gradient(135deg, #1f4037, #99f2c8);
+            padding: 40px;
+            border-radius: 15px;
+            width: 400px;
+            margin: auto;
+            margin-top: 100px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        tab_login, tab_register = st.tabs(["🔑 Login", "🆕 Register"])
+    st.markdown(
+        """
+        <div class="login-box">
+        <h2 style="text-align:center;color:white">🎮 Student AI Portal</h2>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-        # -------- LOGIN --------
-        with tab_login:
-            username = st.text_input("Username", key="login_user")
-            password = st.text_input("Password", type="password", key="login_pass")
+    username = st.text_input("👤 Username")
+    password = st.text_input("🔒 Password", type="password")
 
-            if st.button("Login"):
-                if username in users and users[username]["password"] == password:
-                    st.session_state.user = username
-                    st.success("Login successful")
-                    st.rerun()
-                else:
-                    st.error("Invalid username or password")
+    col1, col2 = st.columns(2)
 
-        # -------- REGISTER --------
-        with tab_register:
-            new_user = st.text_input("Choose Username", key="reg_user")
-            new_pass = st.text_input("Choose Password", type="password", key="reg_pass")
+    
 
-            if st.button("Register"):
-                if new_user == "" or new_pass == "":
-                    st.warning("Please fill all fields")
-                elif new_user in users:
-                    st.error("Username already exists")
-                else:
-                    users[new_user] = {
-                        "password": new_pass,
-                        "tasks_completed": 0,
-                        "points": 0
-                    }
-                    save_users(users)
-                    st.success("Account created! Please login.")
-
-    # ⛔ STOP EVERYTHING UNTIL LOGIN
+if st.button("Login"):
+    if username in users and users[username]["password"] == password:
+        st.session_state.user = username
+        st.rerun()
+    else:
+        st.error("Invalid username or password")
+if "user" not in st.session_state:
     st.stop()
 
-# ===================== AFTER LOGIN =====================
-st.success(f"👋 Welcome, {st.session_state.user}")
+    with col2:
+        if st.button("Register"):
+            if username not in users:
+                users[username] = {"password": password}
+                ranking[username] = {"score": 0, "tasks": 0}
+                tasks[username] = []
+                save(USERS, users)
+                save(RANK, ranking)
+                save(TASKS, tasks)
+                st.success("Account created. Login now.")
+            else:
+                st.warning("User already exists")
 
+    st.stop()
 
 
 # ---------- MENU ----------
