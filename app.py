@@ -90,13 +90,29 @@ if section == "➕ Add Task":
 # ---------- PENDING ----------
 elif section == "⏳ Pending Tasks":
     st.header("⏳ Pending Tasks")
-    for i, t in enumerate(tasks[user]):
-        chk = st.checkbox(t["task"], key=i)
-        if chk:
-            t["done"] = True
-            ranking[user]["score"] += 10
-            save(RANK, ranking)
-    save(TASKS, tasks)
+
+    if not tasks[user]:
+        st.info("No pending tasks")
+    else:
+        for i, t in enumerate(tasks[user]):
+            checked = st.checkbox(
+                t["task"],
+                value=t.get("done", False),
+                key=f"task_{user}_{i}"
+            )
+
+            if checked and not t.get("done", False):
+                t["done"] = True
+                ranking[user]["score"] += 10
+                save(RANK, ranking)
+
+            if t.get("done", False):
+                st.markdown(
+                    f"<span style='color:gray;text-decoration:line-through'>✔ {t['task']}</span>",
+                    unsafe_allow_html=True
+                )
+
+        save(TASKS, tasks)
 
 # ---------- PRIORITY ----------
 elif section == "⭐ Priority Tasks":
