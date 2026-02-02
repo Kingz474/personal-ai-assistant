@@ -32,28 +32,60 @@ ranking = load(RANK, {})
 st.sidebar.title("🔐 Login")
 
 if "user" not in st.session_state:
-    uid = st.sidebar.text_input("User ID")
-    pwd = st.sidebar.text_input("Password", type="password")
+    st.markdown(
+        """
+        <style>
+        .login-box {
+            background: linear-gradient(135deg, #1f4037, #99f2c8);
+            padding: 40px;
+            border-radius: 15px;
+            width: 400px;
+            margin: auto;
+            margin-top: 100px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
-    if st.sidebar.button("Login / Register"):
-        if uid not in users:
-            users[uid] = pwd
-            tasks[uid] = []
-            obstacles[uid] = []
-            ranking[uid] = {"score": 0}
-            save(USERS, users)
-            save(TASKS, tasks)
-            save(OBST, obstacles)
-            save(RANK, ranking)
-        if users.get(uid) == pwd:
-            st.session_state.user = uid
-            st.rerun()
-        else:
-            st.sidebar.error("Wrong password")
+    st.markdown(
+        """
+        <div class="login-box">
+        <h2 style="text-align:center;color:white">🎮 Student AI Portal</h2>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    username = st.text_input("👤 Username")
+    password = st.text_input("🔒 Password", type="password")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("Login"):
+            if username in users and users[username]["password"] == password:
+                st.session_state.user = username
+                st.experimental_rerun()
+            else:
+                st.error("Invalid credentials")
+
+    with col2:
+        if st.button("Register"):
+            if username not in users:
+                users[username] = {"password": password}
+                ranking[username] = {"score": 0, "tasks": 0}
+                tasks[username] = []
+                save(USERS, users)
+                save(RANK, ranking)
+                save(TASKS, tasks)
+                st.success("Account created. Login now.")
+            else:
+                st.warning("User already exists")
 
     st.stop()
 
-user = st.session_state.user
 
 # ---------- MENU ----------
 section = st.sidebar.radio(
@@ -193,22 +225,63 @@ elif section == "📘 Study Help":
 elif section == "🏆 Ranking":
     st.header("🏆 Leaderboard")
 
-    leaderboard = []
-
-    for u, r in ranking.items():
-        completed = 0
-        if u in tasks:
-            completed = sum(1 for t in tasks[u] if t.get("done"))
-
-        leaderboard.append({
-            "Name": u,
-            "Tasks Completed": completed,
-            "Points": r.get("score", 0)
-        })
-
-    leaderboard = sorted(leaderboard, key=lambda x: x["Points"], reverse=True)
-
-    if leaderboard:
-        st.table(leaderboard)
-    else:
+    if not ranking:
         st.info("No ranking data yet")
+    else:
+        # sort users by score
+        sorted_users = sorted(
+            ranking.items(),
+            key=lambda x: x[1]["score"],
+            reverse=True
+        )
+
+        top3 = sorted_users[:3]
+
+        st.markdown("### 🥇 Top Performers")
+
+        col1, col2, col3 = st.columns([1, 1.2, 1])
+
+        if len(top3) > 1:
+            with col1:
+                st.markdown(
+                    f"""
+                    <div style="background:#c0c0c0;padding:20px;border-radius:10px;height:160px;text-align:center">
+                    <h3>🥈 2nd</h3>
+                    <b>{top3[1][0]}</b><br>
+                    {top3[1][1]["score"]} pts
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+        if len(top3) > 0:
+            with col2:
+                st.markdown(
+                    f"""
+                    <div style="background:#ffd700;padding:25px;border-radius:10px;height:220px;text-align:center">
+                    <h2>🥇 1st</h2>
+                    <b>{top3[0][0]}</b><br>
+                    {top3[0][1]["score"]} pts
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+        if len(top3) > 2:
+            with col3:
+                st.markdown(
+                    f"""
+                    <div style="background:#cd7f32;padding:20px;border-radius:10px;height:160px;text-align:center">
+                    <h3>🥉 3rd</h3>
+                    <b>{top3[2][0]}</b><br>
+                    {top3[2][1]["score"]} pts
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+        st.markdown("---")
+        st.markdown("### 📊 Full Ranking")
+
+        for i, (user, data) in enumerate(sorted_users, start=1):
+            st.write(f"{i}. **{user}** — {data['score']} pts | Tasks: {data.get('tasks',0)}")
