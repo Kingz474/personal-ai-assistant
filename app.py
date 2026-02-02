@@ -111,21 +111,47 @@ elif section == "⭐ Priority Tasks":
 
 # ---------- STUDY PLAN ----------
 elif section == "🧠 Daily Study Plan":
-    st.header("🧠 Weekly Study Plan")
-    name = st.text_input("Obstacle name")
-    start = st.time_input("Start")
-    end = st.time_input("End")
+    st.header("🧠 Weekly Study Plan (24-Hour Timetable)")
+
+    DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+    # Load user obstacles
+    user_obstacles = obstacles.get(user, [])
+
+    st.subheader("➕ Add Obstacle")
+    day = st.selectbox("Day", DAYS)
+    obs_name = st.text_input("Obstacle name (college, sleep, food)")
+    start_hour = st.number_input("Start hour (0–23)", 0, 23, 9)
+    end_hour = st.number_input("End hour (0–23)", 0, 23, 17)
 
     if st.button("Add Obstacle"):
-        obstacles[user].append({
-            "name": name,
-            "start": str(start),
-            "end": str(end)
+        user_obstacles.append({
+            "day": day,
+            "name": obs_name,
+            "start": start_hour,
+            "end": end_hour
         })
+        obstacles[user] = user_obstacles
         save(OBST, obstacles)
+        st.success("Obstacle added")
 
-    for o in obstacles[user]:
-        st.write(f"⛔ {o['name']} {o['start']}–{o['end']}")
+    st.divider()
+    st.subheader("📅 Weekly Timetable")
+
+    for d in DAYS:
+        st.markdown(f"### 📆 {d}")
+        day_obs = [o for o in user_obstacles if o["day"] == d]
+
+        table_data = []
+        for hr in range(24):
+            label = "FREE"
+            for o in day_obs:
+                if o["start"] <= hr < o["end"]:
+                    label = f"⛔ {o['name']}"
+                    break
+            table_data.append({"Hour": f"{hr}:00 – {hr+1}:00", "Status": label})
+
+        st.table(table_data)
 
 # ---------- STUDY HELP ----------
 elif section == "📘 Study Help":
@@ -150,6 +176,23 @@ elif section == "📘 Study Help":
 # ---------- RANKING ----------
 elif section == "🏆 Ranking":
     st.header("🏆 Leaderboard")
-    board = sorted(ranking.items(), key=lambda x: x[1]["score"], reverse=True)
-    for i, (u, r) in enumerate(board, 1):
-        st.write(f"{i}. {u} — {r['score']} pts")
+
+    leaderboard = []
+
+    for u, r in ranking.items():
+        completed = 0
+        if u in tasks:
+            completed = sum(1 for t in tasks[u] if t.get("done"))
+
+        leaderboard.append({
+            "Name": u,
+            "Tasks Completed": completed,
+            "Points": r.get("score", 0)
+        })
+
+    leaderboard = sorted(leaderboard, key=lambda x: x["Points"], reverse=True)
+
+    if leaderboard:
+        st.table(leaderboard)
+    else:
+        st.info("No ranking data yet")
